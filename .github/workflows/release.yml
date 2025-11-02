@@ -1,0 +1,258 @@
+name: Release Debian Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.1.0)'
+        required: true
+
+jobs:
+  build-deb:
+    name: Build Debian Packages
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            dist: ubuntu-jammy
+            codename: jammy
+            arch: amd64
+          - os: ubuntu-22.04
+            dist: ubuntu-jammy
+            codename: jammy
+            arch: arm64
+          - os: ubuntu-24.04
+            dist: ubuntu-noble
+            codename: noble
+            arch: amd64
+          - os: ubuntu-24.04
+            dist: ubuntu-noble
+            codename: noble
+            arch: arm64
+
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          build-essential \
+          libeigen3-dev \
+          libspdlog-dev \
+          dpkg-dev
+
+        # Install cross-compilation tools for arm64
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            binutils-aarch64-linux-gnu
+        fi
+
+    - name: Set version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${{ github.ref_name }}"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "VERSION_NUMBER=${VERSION#v}" >> $GITHUB_ENV
+        echo "Building version: $VERSION"
+
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          # Cross-compile for arm64
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY
+        else
+          # Native build for amd64
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+        fi
+
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release -j$(nproc)
+
+    - name: Create Debian package
+      run: |
+        cd build
+
+        # Update version in CPack
+        cpack -G DEB
+
+        # Find the generated package
+        DEB_FILE=$(find . -name "*.deb" | head -1)
+
+        if [ -z "$DEB_FILE" ] || [ ! -f "$DEB_FILE" ]; then
+          echo "Error: No .deb file generated"
+          ls -la *.deb || echo "No .deb files found"
+          exit 1
+        fi
+
+        # Rename package to include distribution and architecture
+        PACKAGE_NAME="libxmotion-core_${{ env.VERSION_NUMBER }}_${{ matrix.dist }}_${{ matrix.arch }}.deb"
+        mv "$DEB_FILE" "$PACKAGE_NAME"
+
+        echo "Successfully created: $PACKAGE_NAME"
+
+        # Show package info
+        dpkg-deb --info "$PACKAGE_NAME"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: deb-${{ matrix.dist }}-${{ matrix.arch }}
+        path: build/*.deb
+        retention-days: 1
+
+  publish:
+    name: Publish to Aptly
+    needs: build-deb
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+        pattern: deb-*
+        merge-multiple: true
+
+    - name: Set version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${{ github.ref_name }}"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "VERSION_NUMBER=${VERSION#v}" >> $GITHUB_ENV
+
+    - name: List available packages
+      run: |
+        echo "Available .deb files:"
+        find dist/ -name "*.deb" -exec ls -lh {} \;
+
+    - name: Install aptlycli
+      run: |
+        echo "Installing aptlycli for package publishing"
+        wget -q https://github.com/rxdu/aptly_api_cli/releases/latest/download/aptlycli-linux-amd64
+        chmod +x aptlycli-linux-amd64
+        sudo mv aptlycli-linux-amd64 /usr/local/bin/aptlycli
+        aptlycli version || echo "aptlycli installed"
+
+    - name: Publish to Aptly repositories
+      env:
+        APTLY_CLI_SERVER_URL: ${{ vars.APTLY_SERVER_URL || 'https://aptly.rdu.im' }}
+        APTLY_CLI_USERNAME: ${{ vars.APTLY_USERNAME || 'admin' }}
+        APTLY_CLI_PASSWORD: ${{ secrets.APTLY_PASSWORD }}
+      run: |
+        echo "Publishing packages to Aptly server: $APTLY_CLI_SERVER_URL"
+
+        # Get timestamp for snapshot naming
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+        # Process each distribution
+        for dist in jammy noble; do
+          echo ""
+          echo "========================================="
+          echo "Processing distribution: $dist"
+          echo "========================================="
+
+          # Find packages for this distribution
+          PACKAGES=$(find dist/ -name "*_ubuntu-${dist}_*.deb")
+
+          if [ -z "$PACKAGES" ]; then
+            echo "No packages found for $dist, skipping"
+            continue
+          fi
+
+          echo "Found packages for $dist:"
+          echo "$PACKAGES"
+
+          # Create upload directory name
+          UPLOAD_DIR="upload-${dist}-${TIMESTAMP}"
+
+          # Ensure repository exists
+          echo ""
+          echo "Checking if repository '$dist' exists..."
+          if ! aptlycli repo show "$dist" &>/dev/null; then
+            echo "Creating repository '$dist'"
+            aptlycli repo create "$dist" --distribution="$dist" --component="main"
+          else
+            echo "Repository '$dist' already exists"
+          fi
+
+          # Upload packages
+          echo ""
+          echo "Uploading packages to '$UPLOAD_DIR'..."
+          aptlycli file upload --dir="$UPLOAD_DIR" $PACKAGES
+
+          # Add packages to repository
+          echo ""
+          echo "Adding packages from '$UPLOAD_DIR' to repository '$dist'..."
+          aptlycli repo add "$dist" "$UPLOAD_DIR"
+
+          # Create snapshot
+          SNAPSHOT_NAME="${dist}-${TIMESTAMP}"
+          echo ""
+          echo "Creating snapshot '$SNAPSHOT_NAME'..."
+          aptlycli snapshot create "$SNAPSHOT_NAME" "$dist" \
+            --description="xmotion-core ${{ env.VERSION }} for $dist"
+
+          # Drop existing published repository if it exists
+          echo ""
+          if aptlycli publish list | grep -q "Distribution: $dist"; then
+            echo "Dropping existing published repository '$dist'..."
+            aptlycli publish drop "$dist" --force
+          fi
+
+          # Publish the snapshot
+          echo ""
+          echo "Publishing snapshot '$SNAPSHOT_NAME'..."
+          aptlycli publish snapshot "$SNAPSHOT_NAME" \
+            --distribution="$dist" \
+            --component="main" \
+            --architectures="amd64,arm64"
+
+          # Clean up upload directory
+          echo ""
+          echo "Cleaning up upload directory '$UPLOAD_DIR'..."
+          aptlycli file delete "$UPLOAD_DIR"
+
+          echo ""
+          echo "✅ Successfully published $dist packages!"
+        done
+
+        echo ""
+        echo "========================================="
+        echo "✅ All packages published successfully!"
+        echo "========================================="
+        echo ""
+        echo "Repository URLs for apt sources.list:"
+        echo "deb $APTLY_CLI_SERVER_URL/ jammy main"
+        echo "deb $APTLY_CLI_SERVER_URL/ noble main"
