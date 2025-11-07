@@ -234,14 +234,45 @@ jobs:
           # Publish: try update first (atomic update), fallback to fresh publish
           echo ""
           echo "Publishing snapshot '$SNAPSHOT_NAME'..."
-          if aptlycli publish update "$dist" "$SNAPSHOT_NAME:main" --prefix="$dist"; then
-            echo "✓ Successfully updated published repository to '$SNAPSHOT_NAME'"
+          echo "  Attempting to update existing published repository at prefix '$dist'..."
+
+          # Capture update output to check for errors
+          update_output=$(aptlycli publish update "$dist" "$SNAPSHOT_NAME:main" --prefix="$dist" 2>&1)
+          update_result=$?
+
+          if [ $update_result -eq 0 ]; then
+            echo "  ✓ Updated existing published repository '$dist' (GPG signed)"
           else
-            echo "No existing publish found, creating fresh publish..."
-            aptlycli publish snapshot "$SNAPSHOT_NAME:main" \
+            # Repository doesn't exist yet, publish it for the first time
+            echo "  Repository not published yet, publishing for the first time..."
+            echo "  Using prefix: '$dist', distribution: '$dist'"
+
+            publish_output=$(aptlycli publish snapshot "$SNAPSHOT_NAME:main" \
               --distribution="$dist" \
               --prefix="$dist" \
-              --architectures="amd64,arm64"
+              --architectures="amd64,arm64" 2>&1)
+            publish_result=$?
+
+            if [ $publish_result -eq 0 ]; then
+              echo "  ✓ Published new snapshot '$SNAPSHOT_NAME' as '$dist' (GPG signed)"
+            else
+              echo "  ✗ Failed to publish snapshot"
+              echo ""
+              echo "  Error details:"
+              echo "$publish_output" | sed 's/^/    /'
+              echo ""
+              echo "  Common causes:"
+              echo "    1. GPG not configured on Aptly server (502 Bad Gateway)"
+              echo "    2. Repository already published at different prefix"
+              echo "    3. Aptly server crashed or timeout during GPG signing"
+              echo "    4. Conflicting repository: $dist/$dist already exists"
+              echo ""
+              echo "  Troubleshooting:"
+              echo "    - Check Aptly server logs for detailed error messages"
+              echo "    - Verify GPG configuration on Aptly server"
+              echo "    - Run: aptlycli publish list (check existing publications)"
+              exit 1
+            fi
           fi
 
           # Clean up upload directory
