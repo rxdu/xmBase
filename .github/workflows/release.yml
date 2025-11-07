@@ -215,9 +215,8 @@ jobs:
             echo "✓ Successfully updated published repository to '$SNAPSHOT_NAME'"
           else
             echo "No existing publish found, creating fresh publish..."
-            aptlycli publish snapshot "$SNAPSHOT_NAME" \
+            aptlycli publish snapshot "$SNAPSHOT_NAME:main" \
               --distribution="$dist" \
-              --component="main" \
               --architectures="amd64,arm64"
           fi
 
