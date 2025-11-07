@@ -160,8 +160,31 @@ jobs:
         # Get timestamp for snapshot naming
         TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
-        # Process each distribution
-        for dist in jammy noble; do
+        # Dynamically discover distributions from package filenames
+        echo ""
+        echo "Discovering distributions from packages..."
+        DISTRIBUTIONS=()
+        for deb_file in dist/*.deb; do
+          if [ -f "$deb_file" ]; then
+            filename=$(basename "$deb_file")
+            # Extract distribution from filename pattern: *_ubuntu-DIST_*.deb
+            if [[ "$filename" =~ _ubuntu-([^_]+)_ ]]; then
+              dist="${BASH_REMATCH[1]}"
+              if [[ ! " ${DISTRIBUTIONS[@]} " =~ " ${dist} " ]]; then
+                DISTRIBUTIONS+=("$dist")
+                echo "  Found distribution: $dist"
+              fi
+            fi
+          fi
+        done
+
+        if [ ${#DISTRIBUTIONS[@]} -eq 0 ]; then
+          echo "Error: No packages found with recognized distribution naming"
+          exit 1
+        fi
+
+        # Process each discovered distribution
+        for dist in "${DISTRIBUTIONS[@]}"; do
           echo ""
           echo "========================================="
           echo "Processing distribution: $dist"
@@ -211,12 +234,13 @@ jobs:
           # Publish: try update first (atomic update), fallback to fresh publish
           echo ""
           echo "Publishing snapshot '$SNAPSHOT_NAME'..."
-          if aptlycli publish update "$dist" "$SNAPSHOT_NAME:main"; then
+          if aptlycli publish update "$dist" "$SNAPSHOT_NAME:main" --prefix="$dist"; then
             echo "✓ Successfully updated published repository to '$SNAPSHOT_NAME'"
           else
             echo "No existing publish found, creating fresh publish..."
             aptlycli publish snapshot "$SNAPSHOT_NAME:main" \
               --distribution="$dist" \
+              --prefix="$dist" \
               --architectures="amd64,arm64"
           fi
 
@@ -235,5 +259,6 @@ jobs:
         echo "========================================="
         echo ""
         echo "Repository URLs for apt sources.list:"
-        echo "deb $APTLY_CLI_SERVER_URL/ jammy main"
-        echo "deb $APTLY_CLI_SERVER_URL/ noble main"
+        for dist in "${DISTRIBUTIONS[@]}"; do
+          echo "deb $APTLY_CLI_SERVER_URL/$dist/ $dist main"
+        done
