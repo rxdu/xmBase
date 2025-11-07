@@ -208,11 +208,11 @@ jobs:
           aptlycli snapshot create "$SNAPSHOT_NAME" "$dist" \
             --description="xmotion-core ${{ env.VERSION }} for $dist"
 
-          # Publish: try switch first (atomic update), fallback to fresh publish
+          # Publish: try update first (atomic update), fallback to fresh publish
           echo ""
           echo "Publishing snapshot '$SNAPSHOT_NAME'..."
-          if aptlycli publish switch "$dist" "$SNAPSHOT_NAME"; then
-            echo "✓ Successfully switched published repository to '$SNAPSHOT_NAME'"
+          if aptlycli publish update "$dist" "$SNAPSHOT_NAME:main"; then
+            echo "✓ Successfully updated published repository to '$SNAPSHOT_NAME'"
           else
             echo "No existing publish found, creating fresh publish..."
             aptlycli publish snapshot "$SNAPSHOT_NAME" \
