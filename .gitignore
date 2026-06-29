@@ -1,6 +1,6 @@
 # build
 */Debug
-build
+build*/
 */build
 cmake-build-debug
 cmake-build-release/
