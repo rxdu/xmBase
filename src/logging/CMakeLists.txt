@@ -25,9 +25,14 @@ target_include_directories(logging PUBLIC
     $<INSTALL_INTERFACE:include>
     PRIVATE src)
 
-# Add executables
+# Unit tests (run by ctest)
 if (BUILD_TESTS)
   add_subdirectory(test)
+endif ()
+
+# Example programs (built on demand; not registered with ctest)
+if (BUILD_EXAMPLES OR XMOTION_DEV_MODE)
+  add_subdirectory(examples)
 endif ()
 
 if (USE_SYS_SPDLOG)
