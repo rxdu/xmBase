@@ -7,8 +7,7 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#ifndef QUADRUPED_MOTION_GEOMETRY_TYPES_HPP
-#define QUADRUPED_MOTION_GEOMETRY_TYPES_HPP
+#pragma once
 
 #include <eigen3/Eigen/Geometry>
 #include <eigen3/Eigen/Dense>
@@ -55,4 +54,3 @@ struct Odometry {
 };
 }  // namespace xmotion
 
-#endif  // QUADRUPED_MOTION_GEOMETRY_TYPES_HPP

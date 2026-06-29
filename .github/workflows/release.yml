@@ -93,7 +93,7 @@ jobs:
         fi
 
         # Rename package to include distribution and architecture
-        PACKAGE_NAME="libxmotion-core_${{ env.VERSION_NUMBER }}_${{ env.DIST }}_${{ env.ARCH }}.deb"
+        PACKAGE_NAME="libxmotion-sigma_${{ env.VERSION_NUMBER }}_${{ env.DIST }}_${{ env.ARCH }}.deb"
         mv "$DEB_FILE" "$PACKAGE_NAME"
 
         echo "Successfully created: $PACKAGE_NAME"
@@ -229,7 +229,7 @@ jobs:
           echo ""
           echo "Creating snapshot '$SNAPSHOT_NAME'..."
           aptlycli snapshot create "$SNAPSHOT_NAME" "$dist" \
-            --description="xmotion-core ${{ env.VERSION }} for $dist"
+            --description="xmSigma ${{ env.VERSION }} for $dist"
 
           # Publish: try update first (atomic update), fallback to fresh publish
           echo ""

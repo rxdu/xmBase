@@ -7,8 +7,7 @@
  * Copyright (c) 2018 Ruixiang Du (rdu)
  */
 
-#ifndef EVENT_LOGGER_HPP
-#define EVENT_LOGGER_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -74,4 +73,3 @@ class EventLogger : public SpecializedLogger {
 };
 } // namespace xmotion
 
-#endif /* EVENT_LOGGER_HPP */

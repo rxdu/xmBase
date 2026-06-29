@@ -6,8 +6,7 @@
  * @copyright Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#ifndef XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_DEFAULT_LOGGER_HPP_
-#define XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_DEFAULT_LOGGER_HPP_
+#pragma once
 
 #include <memory>
 #include <atomic>
@@ -28,4 +27,3 @@ class DefaultLogger final : public LoggerVendorSpdlog {
 };
 }  // namespace xmotion
 
-#endif  // XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_DEFAULT_LOGGER_HPP_

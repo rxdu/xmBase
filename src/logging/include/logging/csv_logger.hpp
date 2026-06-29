@@ -7,8 +7,7 @@
  * Copyright (c) 2018 Ruixiang Du (rdu)
  */
 
-#ifndef CSV_LOGGER_HPP
-#define CSV_LOGGER_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -58,4 +57,3 @@ class GlobalCsvLogger : public CsvLogger {
 };
 } // namespace xmotion
 
-#endif /* CSV_LOGGER_HPP */

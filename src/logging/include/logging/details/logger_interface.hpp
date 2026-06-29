@@ -7,8 +7,7 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#ifndef XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_LOGGER_INTERFACE_HPP_
-#define XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_LOGGER_INTERFACE_HPP_
+#pragma once
 
 #include <string>
 
@@ -49,4 +48,3 @@ class LoggerInterface {
 };
 }  // namespace xmotion
 
-#endif  // XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_LOGGER_INTERFACE_HPP_

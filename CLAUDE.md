@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xmotion-core is a C++ library for robot motion planning and control. It provides:
-- **Interface definitions**: Hardware driver interfaces (motors, sensors, CAN, serial, etc.) and control interfaces
+xmSigma is the foundation library of the xMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
 - **Logging utilities**: spdlog-based logging system with environment variable configuration
-- **Type definitions**: Common geometry and trajectory types for robotics applications
+- **Common types**: the shared geometry/primitive type vocabulary (`xmotion/types/`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla)
+
+It is exposed as a **single** CMake target, `xmotion::xmSigma`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmMu, xmNabla), not here.
 
 The library is designed to be used either as a standalone project or as a module embedded in other projects.
 
@@ -34,13 +35,10 @@ ctest
 cmake .. -DXMOTION_DEV_MODE=ON
 ```
 
-**Run single test:**
+**Run a single test** (tests are gtest, discovered by ctest):
 ```bash
-# Build first
-cmake --build . --config Release
-# Run specific test
-./bin/test_xlogger
-./bin/test_logging
+cmake --build .
+ctest -R XLoggerTest --output-on-failure
 ```
 
 ### CMake Options
@@ -68,27 +66,24 @@ sudo apt-get install libeigen3-dev libspdlog-dev
 
 ### Module Structure
 
-The codebase is organized into two main modules under `src/`:
+Everything compiles into one target, `xmotion::xmSigma`, from two source areas under `src/`:
 
-1. **interface/**: Header-only interface definitions
-   - `interface/type/`: Base types, geometry types, trajectory types
-   - `interface/driver/`: Hardware driver interfaces (motor controllers, sensors, CAN, serial, joystick, etc.)
-   - `interface/control/`: Controller interface template
-   - All interfaces use pure virtual classes to define contracts
-
-2. **logging/**: Logging implementation using spdlog
+1. **logging/**: Logging implementation using spdlog (the compiled part)
    - `logging/xlogger.hpp`: Main logging macros (XLOG_INFO, XLOG_DEBUG, etc.)
    - `logging/ctrl_logger.hpp`: Control-specific logger
    - `logging/csv_logger.hpp`: CSV file logger
    - Supports both printf-style and stream-style logging
 
+2. **types/**: Header-only common type vocabulary, installed under `xmotion/types/`
+   - `xmotion/types/base_types.hpp`: primitive aliases + time types
+   - `xmotion/types/geometry_types.hpp`: Eigen-backed pose/velocity/joint types
+   - These are the types shared by *both* the driver and motion layers; layer-specific types (e.g. trajectories) live in those layers.
+
 ### Key Design Patterns
 
-**Interface Module:**
-- All driver interfaces are pure virtual base classes in the `xmotion` namespace
-- Interfaces define contracts; implementations throw `std::runtime_error` for unsupported operations
-- Template-based controller interface allows type-safe state/output definitions
-- Header-only library linked as INTERFACE target
+**Single-target foundation:**
+- `xmSigma` is one STATIC library aggregating logging + the common types; consumers `find_package(xmSigma)` and link `xmotion::xmSigma`.
+- There are intentionally no driver/control interfaces here — they belong to xmMu's HAL (`xmmu/hal/`). Keeping Σ free of upper-layer specifics is a load-bearing design rule, not an accident.
 
 **Logging Module:**
 - Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled
@@ -145,14 +140,11 @@ XLOG_DEBUG_STREAM("Position: " << x << ", " << y);
 - Follow existing naming conventions in the codebase
 - Use clang-format with Google style for formatting
 
-### Adding New Interfaces
+### What belongs here (and what doesn't)
 
-When adding new driver or controller interfaces:
-1. Create header-only interface in `src/interface/include/interface/driver/` or `interface/control/`
-2. Use pure virtual methods with `= 0` for required operations
-3. Provide default implementations that throw `std::runtime_error` for optional operations
-4. Document which functions are required vs. optional in header comments
-5. No need to modify CMakeLists.txt for header-only additions
+Add to xmSigma only things every component could share: logging facilities, or a type that is genuinely spoken by more than one layer. Concretely:
+- A new **common type** goes in `src/types/include/xmotion/types/` (header-only; no CMakeLists change needed).
+- A new **driver/control interface** does **not** go here — it belongs to its owning component (driver interfaces → xmMu's `xmmu/hal/`; control/motion types → xmNabla). If a would-be "common" type is only used by one upper layer, put it in that layer instead.
 
 ### Testing
 
@@ -182,9 +174,9 @@ cpack
 ```
 
 Package details:
-- Package name: libxmotion-core
+- Package name: libxmotion-sigma
 - Default install prefix: /opt/xmotion
-- Exports CMake targets as `xmotion::interface` and `xmotion::logging`
+- Exports a single CMake target, `xmotion::xmSigma` (via `find_package(xmSigma)`)
 - Includes CMake config files for find_package() support
 
 ## ROS Integration

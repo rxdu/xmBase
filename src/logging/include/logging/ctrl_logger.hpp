@@ -7,8 +7,7 @@
  * Copyright (c) 2018 Ruixiang Du (rdu)
  */
 
-#ifndef CTRL_LOGGER_HPP
-#define CTRL_LOGGER_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -53,4 +52,3 @@ class CtrlLogger : public SpecializedLogger {
 };
 } // namespace xmotion
 
-#endif /* CTRL_LOGGER_HPP */

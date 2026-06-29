@@ -7,8 +7,7 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#ifndef XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_XLOGGER_HPP_
-#define XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_XLOGGER_HPP_
+#pragma once
 
 #include <sstream>
 
@@ -129,4 +128,3 @@
   {}
 #endif
 
-#endif  // XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_XLOGGER_HPP_

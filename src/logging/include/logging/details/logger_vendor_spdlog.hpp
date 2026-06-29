@@ -6,8 +6,7 @@
  * @copyright Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#ifndef XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_LOGGER_VENDOR_SPDLOG_HPP_
-#define XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_LOGGER_VENDOR_SPDLOG_HPP_
+#pragma once
 
 #include <memory>
 #include <string>
@@ -66,4 +65,3 @@ class LoggerVendorSpdlog : public LoggerInterface {
 };
 }  // namespace xmotion
 
-#endif  // XMOTION_SRC_UTILITIES_LOGGING_INCLUDE_LOGGING_DETAILS_LOGGER_VENDOR_SPDLOG_HPP_

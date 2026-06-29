@@ -4,10 +4,10 @@ project(xmSigma VERSION 0.1.0)
 message(STATUS "------------------------------------------------")
 if (PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
   set(BUILD_AS_MODULE OFF)
-  message(STATUS "Build libxmotion-core as a standalone project")
+  message(STATUS "Build xmSigma as a standalone project")
 else ()
   set(BUILD_AS_MODULE ON)
-  message(STATUS "Build libxmotion-core as a module")
+  message(STATUS "Build xmSigma as a module")
 endif ()
 message(STATUS "------------------------------------------------")
 
@@ -19,6 +19,7 @@ endif ()
 
 ## Project Options
 option(BUILD_TESTING "Build tests" OFF)
+option(BUILD_EXAMPLES "Build examples" OFF)
 option(STATIC_CHECK "Enable static check" OFF)
 option(XMOTION_DEV_MODE "Development mode forces building tests" OFF)
 
@@ -64,7 +65,7 @@ else ()
 endif ()
 
 if (XMOTION_DEV_MODE)
-  message(STATUS "xmotion-core development mode enabled")
+  message(STATUS "xmSigma development mode enabled")
 endif ()
 
 ## Chosse build type
@@ -92,10 +93,10 @@ if (((NOT BUILD_AS_MODULE) AND BUILD_TESTING) OR XMOTION_DEV_MODE)
   enable_testing()
   include(GoogleTest)
   set(BUILD_TESTS ON)
-  message(STATUS "xmotion-core tests will be built")
+  message(STATUS "xmSigma tests will be built")
 else ()
   set(BUILD_TESTS OFF)
-  message(STATUS "xmotion-core tests will not be built")
+  message(STATUS "xmSigma tests will not be built")
 endif ()
 
 ## Enable -fPIC for all targets
@@ -106,16 +107,6 @@ add_subdirectory(third_party)
 
 ## Add source directories
 add_subdirectory(src)
-
-## Family-convention targets: namespaced aliases (so add_subdirectory consumers
-## see the same xmotion:: targets as find_package consumers) plus an aggregate
-## xmotion::xmSigma that pulls in the whole foundation.
-add_library(xmotion::interface ALIAS interface)
-add_library(xmotion::logging ALIAS logging)
-add_library(xmSigma INTERFACE)
-target_link_libraries(xmSigma INTERFACE interface logging)
-add_library(xmotion::xmSigma ALIAS xmSigma)
-install(TARGETS xmSigma EXPORT xmSigmaTargets)
 
 ## Installation setup
 # Offer the user the choice of overriding the installation directories
@@ -155,9 +146,9 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmSigmaConfig.cmake"
     DESTINATION lib/cmake/xmSigma)
 
 # Packaging support
-set(CPACK_DEBIAN_PACKAGE_NAME "libxmotion-core")
+set(CPACK_DEBIAN_PACKAGE_NAME "libxmotion-sigma")
 set(CPACK_PACKAGE_VENDOR "Ruixiang Du")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "xMotion Library Core - a library for robot motion planning and control")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "xmSigma - the xMotion foundation: driver/control interfaces, logging, and common types")
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})

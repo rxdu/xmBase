@@ -9,7 +9,7 @@
 
 #include "logging/details/default_logger.hpp"
 
-#include "logging_utils.hpp"
+#include "logging/details/logging_utils.hpp"
 
 namespace xmotion {
 std::shared_ptr<DefaultLogger> DefaultLogger::GetInstance() {

@@ -7,8 +7,7 @@
  * Copyright (c) 2018 Ruixiang Du (rdu)
  */
 
-#ifndef SPECIALIZED_LOGGER_HPP
-#define SPECIALIZED_LOGGER_HPP
+#pragma once
 
 #include <memory>
 #include <string>
@@ -53,4 +52,3 @@ class SpecializedLogger {
 };
 } // namespace xmotion
 
-#endif /* SPECIALIZED_LOGGER_HPP */
