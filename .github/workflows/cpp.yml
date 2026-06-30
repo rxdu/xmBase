@@ -81,7 +81,7 @@ jobs:
           - name: tsan
             flags: "-fsanitize=thread -O1 -g"
             opts: "TSAN_OPTIONS=halt_on_error=1"
-            target: "--target test_rt_logger"
+            target: "--target test_rt_logger --target test_mpsc_rt_logger"
             filter: "-R RtLogger"
     steps:
       - uses: actions/checkout@v5

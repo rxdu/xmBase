@@ -120,9 +120,25 @@ queued.
   "double lock" warning that reproduces with *bare* spdlog 1.9.2 (no xmSigma
   code) and does not deadlock — it is an upstream spdlog artifact, not ours.
 
-## 7. Non-goals / future
-- MPSC RT logger (multiple producers per ring) — current `RtLogger` is SPSC (one
-  RT thread per logger, the common control-loop shape).
+## 7. Multi-producer hard-RT (`MpscRtLogger`)
+
+`RtLogger` is SPSC (wait-free) — one producer thread per logger, the common
+control-loop shape. When several threads must log to one hard-RT logger (e.g.
+multiple control loops or sensor callbacks), use **`MpscRtLogger`**
+(`xmsigma/logging/rt_logger_mpsc.hpp`). Same `Log()` API and `XLOG_RT_*` macros
+(they only call `.Log()`), so the only change is the type.
+
+It uses a bounded **Vyukov ring**: each cell carries a sequence number; a
+producer claims a slot with a CAS on the shared enqueue index, formats into the
+slot, and publishes by advancing the cell's sequence. The single consumer reads
+slots strictly in claim order, so **per-producer FIFO** holds even though
+producers may publish out of order. The hot path is **lock-free** (a claim
+retries at most once per *competing* producer — bounded by the producer count,
+vs SPSC's wait-free single producer), still no heap / no syscall / drop-on-full.
+Pick SPSC when there is one producer (strictly wait-free); MPSC when there are
+several (lock-free, bounded by contention).
+
+## 8. Non-goals / future
 - Zero-format binary logging (see §2) — escalation, not default.
 - Signal-safe logging — spdlog is not async-signal-safe; do not log from a signal
   handler.
