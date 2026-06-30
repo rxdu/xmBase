@@ -60,3 +60,45 @@ jobs:
         working-directory: ${{runner.workspace}}/build
         shell: bash
         run: ctest --output-on-failure --no-tests=error
+
+  # Sanitizer coverage. ASan+UBSan runs the whole suite; TSan is scoped to the
+  # lock-free RtLogger (the hand-rolled concurrency that needs race checking) —
+  # the async spdlog path trips a "double lock" TSan artifact inside spdlog 1.9.2
+  # itself (reproducible with bare spdlog), so running it under TSan would fail
+  # on an upstream bug rather than ours.
+  sanitizers:
+    name: sanitizers (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: asan-ubsan
+            flags: "-fsanitize=address,undefined -fno-sanitize-recover=all -O1 -g"
+            opts: "ASAN_OPTIONS=detect_leaks=0"
+            target: ""
+            filter: ""
+          - name: tsan
+            flags: "-fsanitize=thread -O1 -g"
+            opts: "TSAN_OPTIONS=halt_on_error=1"
+            target: "--target test_rt_logger"
+            filter: "-R RtLogger"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libeigen3-dev libspdlog-dev
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S . -B build -DBUILD_TESTING=ON -DXMOTION_DEV_MODE=ON
+          -DCMAKE_CXX_FLAGS="${{ matrix.flags }}"
+          -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+      - name: Build
+        shell: bash
+        run: cmake --build build -j ${{ matrix.target }}
+      - name: Test
+        shell: bash
+        working-directory: build
+        run: ${{ matrix.opts }} ctest --output-on-failure --no-tests=error ${{ matrix.filter }}
