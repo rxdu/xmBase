@@ -13,10 +13,10 @@
 #include <memory>
 #include <string>
 
-#include "logging/ctrl_logger.hpp"
-#include "logging/csv_logger.hpp"
-#include "logging/event_logger.hpp"
-#include "logging/details/logging_utils.hpp"
+#include "xmsigma/logging/ctrl_logger.hpp"
+#include "xmsigma/logging/csv_logger.hpp"
+#include "xmsigma/logging/event_logger.hpp"
+#include "xmsigma/logging/details/logging_utils.hpp"
 
 using namespace xmotion;
 

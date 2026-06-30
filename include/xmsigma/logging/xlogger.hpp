@@ -11,7 +11,7 @@
 
 #include <sstream>
 
-#include "logging/details/default_logger.hpp"
+#include "xmsigma/logging/details/default_logger.hpp"
 
 /*
  * level: 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN,
