@@ -14,8 +14,8 @@
 #include <sstream>
 #include <ostream>
 
-#include "logging/details/spdlog_headers.hpp"
-#include "logging/details/logging_utils.hpp"
+#include "xmsigma/logging/details/spdlog_headers.hpp"
+#include "xmsigma/logging/details/logging_utils.hpp"
 
 namespace xmotion {
 class SpecializedLogger {
