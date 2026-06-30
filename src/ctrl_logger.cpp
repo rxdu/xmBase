@@ -54,6 +54,11 @@ void CtrlLogger::AddItemDataToEntry(std::string item_name, std::string data_str)
 void CtrlLogger::AddItemDataToEntry(uint64_t item_id, std::string data_str) {
   if (!head_added_)
     return;
+  if (item_id >= item_data_.size()) {  // guard: an out-of-range id is UB
+    std::cerr << "CtrlLogger: item_id " << item_id
+              << " out of range, data ignored!" << std::endl;
+    return;
+  }
 
   item_data_[item_id] = data_str;
 }
@@ -79,7 +84,7 @@ void CtrlLogger::PassEntryHeaderToLogger() {
     head_str.erase(found);
 
 #ifdef ENABLE_LOGGING
-  logger_->info(head_str);
+  logger_->info("{}", head_str);  // payload, never a format string
 #endif
 
   item_data_.resize(item_counter_);
@@ -105,7 +110,7 @@ void CtrlLogger::PassEntryDataToLogger() {
 
 #ifdef ENABLE_LOGGING
   if (!log_entry.empty())
-    logger_->info(log_entry);
+    logger_->info("{}", log_entry);  // payload, never a format string
 #endif
 }
 } // namespace xmotion

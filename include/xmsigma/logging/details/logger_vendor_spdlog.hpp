@@ -32,6 +32,10 @@ class LoggerVendorSpdlog : public LoggerInterface {
   void SetLoggerLevel(LogLevel level) override;
   LogLevel GetLoggerLevel() override;
 
+  // Cheap runtime level test — lets call sites skip building a message that
+  // would be filtered out (used by the *_STREAM macros before formatting).
+  bool ShouldLog(LogLevel level);
+
   template <typename... LogArgs>
   void Log(LogLevel level, LogArgs&&... args) {
     switch (level) {

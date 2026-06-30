@@ -54,5 +54,11 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < 500; i++)
     event_logger.LogEvent("event1", "event2", i * 100.5);
 
+  // These loggers are async — flush before exit so buffered rows reach disk.
+  ctrl_logger.Flush();
+  csv_logger.Flush();
+  GlobalCsvLogger::GetLogger().Flush();
+  event_logger.Flush();
+
   return 0;
 }

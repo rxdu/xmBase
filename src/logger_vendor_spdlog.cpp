@@ -9,6 +9,9 @@
 
 #include "xmsigma/logging/details/logger_vendor_spdlog.hpp"
 
+#include <chrono>
+
+#include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
@@ -16,6 +19,11 @@
 
 namespace xmotion {
 namespace {
+// Async queue sizing. One worker thread keeps log ordering deterministic; the
+// queue is large enough to absorb bursts before overrun_oldest kicks in.
+constexpr std::size_t kAsyncQueueSize = 8192;
+constexpr std::size_t kAsyncWorkerThreads = 1;
+
 spdlog::level::level_enum ToSpdlogLevel(LogLevel level) {
   switch (level) {
     case LogLevel::kTrace:
@@ -87,9 +95,27 @@ void LoggerVendorSpdlog::Initialize(std::string logger_name,
         CreateLogNameWithFullPath(logger_name, file_suffix)));
   }
 
-  logger_ = std::make_shared<spdlog::logger>(logger_name, sinks_.begin(),
-                                             sinks_.end());
+  // Async logger: the caller formats + enqueues, a worker thread performs the
+  // sink I/O. overrun_oldest => a full queue drops the OLDEST record instead of
+  // blocking the producer, so a slow disk or console never stalls a hot loop.
+  // (For hard real-time, use RtLogger instead — see rt_logger.hpp.)
+  if (!spdlog::thread_pool()) {
+    spdlog::init_thread_pool(kAsyncQueueSize, kAsyncWorkerThreads);
+  }
+  logger_ = std::make_shared<spdlog::async_logger>(
+      logger_name, sinks_.begin(), sinks_.end(), spdlog::thread_pool(),
+      spdlog::async_overflow_policy::overrun_oldest);
   logger_->set_pattern(pattern);
+
+  // Register so the registry-driven periodic flush below applies to it.
+  spdlog::drop(logger_name);  // defensive: clear any prior logger of this name
+  spdlog::register_logger(logger_);
+
+  // Do NOT flush on every message. Flush errors promptly; flush routine records
+  // periodically. Both flushes are serviced on the worker thread, off the hot
+  // path.
+  logger_->flush_on(spdlog::level::err);
+  spdlog::flush_every(std::chrono::seconds(1));
 
   SetLoggerLevel(FromSpdlogLevel(log_level));
 }
@@ -98,10 +124,13 @@ void LoggerVendorSpdlog::Terminate() { logger_->flush(); }
 
 void LoggerVendorSpdlog::SetLoggerLevel(LogLevel level) {
   logger_->set_level(ToSpdlogLevel(level));
-  logger_->flush_on(ToSpdlogLevel(level));
 }
 
 LogLevel LoggerVendorSpdlog::GetLoggerLevel() {
   return FromSpdlogLevel(logger_->level());
+}
+
+bool LoggerVendorSpdlog::ShouldLog(LogLevel level) {
+  return logger_->should_log(ToSpdlogLevel(level));
 }
 }  // namespace xmotion
