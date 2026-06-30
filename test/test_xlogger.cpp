@@ -17,8 +17,8 @@
 #include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
 
-#include "logging/xlogger.hpp"
-#include "logging/details/default_logger.hpp"
+#include "xmsigma/logging/xlogger.hpp"
+#include "xmsigma/logging/details/default_logger.hpp"
 
 namespace fs = std::filesystem;
 

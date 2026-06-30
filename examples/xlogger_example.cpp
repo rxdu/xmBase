@@ -8,7 +8,7 @@
  */
 
 #include <thread>
-#include "logging/xlogger.hpp"
+#include "xmsigma/logging/xlogger.hpp"
 
 int main(int argc, char* argv[]) {
   XLOG_INFO("This is an info message");

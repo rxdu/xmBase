@@ -16,7 +16,7 @@
 #include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
 
-#include "logging/csv_logger.hpp"
+#include "xmsigma/logging/csv_logger.hpp"
 
 namespace fs = std::filesystem;
 

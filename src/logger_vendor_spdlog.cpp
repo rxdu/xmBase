@@ -7,12 +7,12 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#include "logging/details/logger_vendor_spdlog.hpp"
+#include "xmsigma/logging/details/logger_vendor_spdlog.hpp"
 
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-#include "logging/details/logging_utils.hpp"
+#include "xmsigma/logging/details/logging_utils.hpp"
 
 namespace xmotion {
 namespace {

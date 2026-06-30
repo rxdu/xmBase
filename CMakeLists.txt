@@ -105,8 +105,50 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ## Dependent libraries
 add_subdirectory(third_party)
 
-## Add source directories
-add_subdirectory(src)
+## Build the xmSigma library from the include/ + src/ layout
+find_package(Eigen3 REQUIRED NO_MODULE)
+find_package(Threads REQUIRED)
+if (USE_SYS_SPDLOG)
+  find_package(spdlog REQUIRED)
+endif ()
+
+add_library(xmSigma STATIC
+    src/ctrl_logger.cpp
+    src/default_logger.cpp
+    src/logger_vendor_spdlog.cpp)
+target_include_directories(xmSigma PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+target_link_libraries(xmSigma PUBLIC Eigen3::Eigen Threads::Threads)
+if (ENABLE_LOGGING)
+  target_compile_definitions(xmSigma PUBLIC ENABLE_LOGGING)
+endif ()
+# When spdlog is bundled (USE_SYS_SPDLOG=OFF) the xmSigma target links the
+# in-tree spdlog target, so it must travel in the same export set — otherwise
+# install(EXPORT) errors that spdlog is referenced but not exported. With system
+# spdlog the link is an imported target and needs no exporting.
+if (USE_SYS_SPDLOG)
+  target_link_libraries(xmSigma PUBLIC spdlog::spdlog)
+else ()
+  set(_xmsigma_install_targets xmSigma spdlog)
+  target_link_libraries(xmSigma PUBLIC spdlog)
+endif ()
+if (NOT DEFINED _xmsigma_install_targets)
+  set(_xmsigma_install_targets xmSigma)
+endif ()
+add_library(xmotion::xmSigma ALIAS xmSigma)
+
+install(TARGETS ${_xmsigma_install_targets} EXPORT xmSigmaTargets
+    LIBRARY DESTINATION lib ARCHIVE DESTINATION lib RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+if (BUILD_TESTS)
+  add_subdirectory(test)
+endif ()
+if (BUILD_EXAMPLES OR XMOTION_DEV_MODE)
+  add_subdirectory(examples)
+endif ()
 
 ## Installation setup
 # Offer the user the choice of overriding the installation directories

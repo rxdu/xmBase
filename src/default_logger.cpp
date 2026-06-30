@@ -7,9 +7,9 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#include "logging/details/default_logger.hpp"
+#include "xmsigma/logging/details/default_logger.hpp"
 
-#include "logging/details/logging_utils.hpp"
+#include "xmsigma/logging/details/logging_utils.hpp"
 
 namespace xmotion {
 std::shared_ptr<DefaultLogger> DefaultLogger::GetInstance() {

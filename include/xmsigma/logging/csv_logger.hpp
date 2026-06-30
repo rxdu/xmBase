@@ -17,7 +17,7 @@
 #include <atomic>
 #include <sstream>
 
-#include "logging/details/specialized_logger.hpp"
+#include "xmsigma/logging/details/specialized_logger.hpp"
 
 namespace xmotion {
 class CsvLogger : public SpecializedLogger {
