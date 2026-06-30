@@ -40,6 +40,9 @@ MpscRtLogger::MpscRtLogger(std::string name, std::size_t ring_capacity,
   for (std::size_t i = 0; i < cap; ++i)
     cells_[i].sequence.store(i, std::memory_order_relaxed);
 
+  // Seed the runtime level from XLOG_LEVEL (see RtLogger).
+  min_level_.store(ResolveLogLevelFromEnv(), std::memory_order_relaxed);
+
   // The sink logger is touched ONLY by the drain thread; a synchronous logger
   // is correct here (its I/O is already off the producers' hot path).
   std::vector<spdlog::sink_ptr> sinks;
