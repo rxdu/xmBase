@@ -28,7 +28,7 @@ using xmotion::LogLevel;
 namespace {
 
 int CurrentLevel() {
-  return static_cast<int>(DefaultLogger::GetInstance()->GetLoggerLevel());
+  return static_cast<int>(DefaultLogger::GetInstance().GetLoggerLevel());
 }
 
 }  // namespace
@@ -72,10 +72,10 @@ TEST(XLoggerTest, WritesKnownMessageToLogFile) {
 
   const std::string marker = "xlogger_unit_test_marker_42";
   XLOG_LEVEL(static_cast<int>(LogLevel::kInfo));
-  XLOG_INFO(marker.c_str());
+  XLOG_INFO("{}", marker);
 
   // Flush/drain any buffered records before reading the file back.
-  DefaultLogger::GetInstance()->Terminate();
+  DefaultLogger::GetInstance().Terminate();
   spdlog::shutdown();
 
   // The file sink writes to <XLOG_FOLDER>/<date>/<proc>-<timestamp>.log.
