@@ -24,6 +24,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -76,6 +77,9 @@ std::string MakeTempLogDir() {
   char* dir = mkdtemp(tmpl);
   EXPECT_NE(dir, nullptr);
   setenv("XLOG_FOLDER", dir, 1);
+  // Pin the ambient level so delivery assertions don't depend on a CI-set
+  // XLOG_LEVEL now that RtLogger honors it (default fallback is INFO).
+  unsetenv("XLOG_LEVEL");
   return std::string(dir);
 }
 
@@ -213,10 +217,15 @@ TEST(RtLoggerTest, HotPathDoesNotAllocate) {
   RtLogger rt("rt_noalloc", 8192, /*log_to_file=*/true);
   XLOG_RT_INFO(rt, "warmup {}", 0);  // absorb any one-time init
 
+  // Include a string-view arg: format_to_n must not allocate for it either
+  // (the slot is fixed; the view is not copied through the heap).
+  const std::string payload = "string_arg_payload";
+  const std::string_view view = payload;
+
   t_alloc_count = 0;
   t_track_alloc = true;
   for (int i = 0; i < 2000; ++i) {
-    XLOG_RT_INFO(rt, "seq={}; v={} f={}", i, i * 2, i * 0.5);
+    XLOG_RT_INFO(rt, "seq={}; v={} f={} s={}", i, i * 2, i * 0.5, view);
   }
   t_track_alloc = false;
 
@@ -355,5 +364,46 @@ TEST(RtLoggerTest, EnqueueLatencyIsBounded) {
   // Generous bound: a correct wait-free enqueue is sub-microsecond; 1ms p99
   // would mean it blocked. Avoids flakiness on shared CI runners.
   EXPECT_LT(p99, 1000000u) << "p99 enqueue latency must be well under 1ms";
+  fs::remove_all(dir);
+}
+
+// Runtime level filter: records below the active level are suppressed on the
+// hot path (not written, not counted as ring-full drops). Records at/above it
+// pass through.
+TEST(RtLoggerTest, RuntimeLevelFilterSuppressesBelowThreshold) {
+  const std::string dir = MakeTempLogDir();
+  RtLogger rt("rt_level", 8192, /*log_to_file=*/true);
+  rt.SetLevel(xmotion::LogLevel::kWarn);
+  EXPECT_EQ(rt.GetLevel(), xmotion::LogLevel::kWarn);
+
+  for (uint64_t i = 0; i < 1000; ++i) XLOG_RT_INFO(rt, "seq={};", i);  // dropped
+  XLOG_RT_WARN(rt, "kept_warn_marker_123");                            // kept
+  XLOG_RT_ERROR(rt, "seq={};", 9999u);                                 // kept
+  rt.Flush();
+
+  EXPECT_EQ(rt.dropped(), 0u) << "level-filtered records are not ring-full drops";
+  const std::vector<uint64_t> seqs = ReadSeqsInOrder(dir);
+  ASSERT_EQ(seqs.size(), 1u) << "only the ERROR seq survives the kWarn filter";
+  EXPECT_EQ(seqs.front(), 9999u);
+  EXPECT_TRUE(FileTreeContains(dir, "kept_warn_marker_123"));
+  fs::remove_all(dir);
+}
+
+// A malformed format string (here: a placeholder with no matching argument)
+// makes fmt throw; the hot path must catch it, never propagate onto the RT
+// thread, and emit a bounded diagnostic instead of crashing.
+TEST(RtLoggerTest, MalformedFormatDoesNotCrash) {
+  const std::string dir = MakeTempLogDir();
+  {
+    RtLogger rt("rt_badfmt", 64, /*log_to_file=*/true);
+    XLOG_RT_INFO(rt, "missing arg {}");        // throws inside fmt -> caught
+    XLOG_RT_INFO(rt, "ok seq={};", 42u);       // normal record still works
+    rt.Flush();
+    EXPECT_EQ(rt.dropped(), 0u);
+  }
+  EXPECT_TRUE(FileTreeContains(dir, "log format error"))
+      << "a bad format string must yield a diagnostic, not a crash";
+  EXPECT_TRUE(FileTreeContains(dir, "seq=42;"))
+      << "a well-formed record after a bad one must still be delivered";
   fs::remove_all(dir);
 }

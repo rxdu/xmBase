@@ -55,6 +55,8 @@ class MpscRtLogger {
   // HOT PATH — safe to call from any number of threads concurrently.
   template <typename... Args>
   void Log(LogLevel level, spdlog::string_view_t fmt_str, Args &&...args) {
+    // Runtime level filter, before any slot claim or formatting (see RtLogger).
+    if (level < min_level_.load(std::memory_order_relaxed)) return;
     Cell *cell;
     std::uint64_t pos = enqueue_pos_.load(std::memory_order_relaxed);
     for (;;) {
@@ -76,12 +78,16 @@ class MpscRtLogger {
     }
     cell->time = std::chrono::system_clock::now();  // vDSO clock, bounded
     cell->level = level;
-    auto res = fmt::format_to_n(cell->msg, kMaxMsgLen, fmt::runtime(fmt_str),
-                                std::forward<Args>(args)...);
-    cell->len = static_cast<std::uint16_t>(res.size < kMaxMsgLen ? res.size
-                                                                 : kMaxMsgLen);
+    cell->len = rt_detail::FormatInto(cell->msg, kMaxMsgLen, fmt_str,
+                                      std::forward<Args>(args)...);
     cell->sequence.store(pos + 1, std::memory_order_release);  // publish
   }
+
+  // Runtime level control (see RtLogger). RT-safe from any thread.
+  void SetLevel(LogLevel level) {
+    min_level_.store(level, std::memory_order_relaxed);
+  }
+  LogLevel GetLevel() const { return min_level_.load(std::memory_order_relaxed); }
 
   std::uint64_t dropped() const {
     return dropped_.load(std::memory_order_relaxed);
@@ -105,6 +111,7 @@ class MpscRtLogger {
   std::size_t capacity_;
   std::size_t mask_;
   std::unique_ptr<Cell[]> cells_;
+  std::atomic<LogLevel> min_level_{LogLevel::kTrace};  // read-mostly level filter
   alignas(64) std::atomic<std::uint64_t> enqueue_pos_{0};  // contended by producers
   alignas(64) std::atomic<std::uint64_t> dequeue_pos_{0};  // single consumer
   alignas(64) std::atomic<std::uint64_t> dropped_{0};

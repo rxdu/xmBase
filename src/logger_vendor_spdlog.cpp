@@ -66,19 +66,9 @@ LogLevel FromSpdlogLevel(spdlog::level::level_enum level) {
 void LoggerVendorSpdlog::Initialize(std::string logger_name,
                                     std::string pattern,
                                     std::string file_suffix) {
-  // handle log level
-  spdlog::level::level_enum log_level = ToSpdlogLevel(default_log_level);
-  if (!GetEnvironmentVariable(log_level_env_var_name).empty()) {
-    int log_level_int;
-    try {
-      log_level_int = std::stoi(GetEnvironmentVariable(log_level_env_var_name));
-    } catch (std::invalid_argument& e) {
-      log_level_int = ToSpdlogLevel(default_log_level);
-    }
-    if (log_level_int < 0 || log_level_int > 6)
-      log_level_int = ToSpdlogLevel(default_log_level);
-    log_level = ToSpdlogLevel(static_cast<LogLevel>(log_level_int));
-  }
+  // handle log level (XLOG_LEVEL env, validated; falls back to the default)
+  spdlog::level::level_enum log_level =
+      ToSpdlogLevel(ResolveLogLevelFromEnv(default_log_level));
 
   bool enable_logfile = false;
   std::string enable_logfile_var =
