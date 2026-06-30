@@ -76,8 +76,11 @@ Everything compiles into one target, `xmotion::xmSigma`. Headers live under
    - `ctrl_logger.hpp`: control-specific logger; `csv_logger.hpp`: CSV file logger; `event_logger.hpp`: structured event logger.
 
 2. **types/** (`include/xmsigma/types/`): Header-only common type vocabulary (namespace `xmotion`)
-   - `xmsigma/types/base_types.hpp`: primitive aliases + time types
-   - `xmsigma/types/geometry_types.hpp`: Eigen-backed pose/velocity/joint types
+   - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
+   - `types.hpp`: umbrella that pulls in all of the above.
+   - `quantities.hpp`: **opt-in** strong-typed quantities (tagged `Vec3`: `Force`, `Torque`, `LinearVelocity`, …) — distinct types so the compiler catches quantity mix-ups; reach Eigen via `.vec()`. Not included by the umbrella.
+   - `base_types.hpp` / `geometry_types.hpp`: compatibility facades re-exporting the granular headers (legacy include paths used by xmMu/xmNabla).
+   - Conventions: SI units, radians, intrinsic Z-Y-X Euler, Hamilton quaternions; all composite types default-initialize to identity/zero.
    - These are the types shared by *both* the driver and motion layers; layer-specific types (e.g. trajectories) live in those layers.
 
 ### Key Design Patterns
