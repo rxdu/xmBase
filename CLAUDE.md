@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 xmSigma is the foundation library of the xMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
 - **Logging utilities**: spdlog-based logging system with environment variable configuration
-- **Common types**: the shared geometry/primitive type vocabulary (`xmotion/types/`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla)
+- **Common types**: the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla)
 
 It is exposed as a **single** CMake target, `xmotion::xmSigma`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmMu, xmNabla), not here.
 
@@ -66,17 +66,18 @@ sudo apt-get install libeigen3-dev libspdlog-dev
 
 ### Module Structure
 
-Everything compiles into one target, `xmotion::xmSigma`, from two source areas under `src/`:
+Everything compiles into one target, `xmotion::xmSigma`. Headers live under
+`include/xmsigma/`; the compiled logging sources under `src/`.
 
-1. **logging/**: Logging implementation using spdlog (the compiled part)
-   - `logging/xlogger.hpp`: Main logging macros (XLOG_INFO, XLOG_DEBUG, etc.)
-   - `logging/ctrl_logger.hpp`: Control-specific logger
-   - `logging/csv_logger.hpp`: CSV file logger
-   - Supports both printf-style and stream-style logging
+1. **logging/** (`include/xmsigma/logging/`): logging front-ends; the spdlog-backed
+   implementation is the compiled part under `src/`.
+   - `xlogger.hpp`: soft-RT macros (`XLOG_INFO`, `XLOG_DEBUG`, …) — async spdlog default. fmt `{}` syntax; also stream-style (`XLOG_*_STREAM`).
+   - `rt_logger.hpp` / `rt_logger_mpsc.hpp`: hard-RT macros (`XLOG_RT_*`) — lock-free, allocation-free `RtLogger` (single-producer) and `MpscRtLogger` (multi-producer).
+   - `ctrl_logger.hpp`: control-specific logger; `csv_logger.hpp`: CSV file logger; `event_logger.hpp`: structured event logger.
 
-2. **types/**: Header-only common type vocabulary, installed under `xmotion/types/`
-   - `xmotion/types/base_types.hpp`: primitive aliases + time types
-   - `xmotion/types/geometry_types.hpp`: Eigen-backed pose/velocity/joint types
+2. **types/** (`include/xmsigma/types/`): Header-only common type vocabulary (namespace `xmotion`)
+   - `xmsigma/types/base_types.hpp`: primitive aliases + time types
+   - `xmsigma/types/geometry_types.hpp`: Eigen-backed pose/velocity/joint types
    - These are the types shared by *both* the driver and motion layers; layer-specific types (e.g. trajectories) live in those layers.
 
 ### Key Design Patterns
@@ -85,11 +86,16 @@ Everything compiles into one target, `xmotion::xmSigma`, from two source areas u
 - `xmSigma` is one STATIC library aggregating logging + the common types; consumers `find_package(xmSigma)` and link `xmotion::xmSigma`.
 - There are intentionally no driver/control interfaces here — they belong to xmMu's HAL (`xmmu/hal/`). Keeping Σ free of upper-layer specifics is a load-bearing design rule, not an accident.
 
-**Logging Module:**
-- Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled
-- Singleton pattern for DefaultLogger
-- Environment variable configuration (see below)
-- Thread-safe logging with spdlog backend
+**Logging Module (dual-mode):**
+- Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
+  compile-time `XMSIGMA_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
+- **Soft-RT default (`XLOG_*`):** async spdlog (caller formats + enqueues, a worker thread
+  does the I/O); a full queue drops the oldest record rather than blocking. Singleton
+  `DefaultLogger`. Use for everything without a hard deadline.
+- **Hard-RT (`XLOG_RT_*`):** a per-loop `RtLogger`/`MpscRtLogger` over a lock-free ring drained
+  by a background thread — wait-free/lock-free, no heap, no syscall, never blocks; a full ring
+  drops the newest record and bumps `dropped()`. Honors `XLOG_LEVEL`; `SetLevel()` at runtime.
+- Environment variable configuration (see below); thread-safe with spdlog backend.
 
 ### Namespace Convention
 
@@ -104,15 +110,24 @@ The logging system is controlled via environment variables:
 - `XLOG_ENABLE_LOGFILE`: Enable file logging (TRUE/true/1 to enable, default: false)
 - `XLOG_FOLDER`: Log file directory (default: ~/.xmotion/log)
 
-**Usage in code:**
+**Usage in code** (format strings use fmt `{}` syntax, **not** printf):
 ```cpp
-#include "logging/xlogger.hpp"
+#include "xmsigma/logging/xlogger.hpp"
 
-// Printf-style
-XLOG_INFO("Motor speed: %d RPM", speed);
+// fmt-style (soft-RT, async)
+XLOG_INFO("Motor speed: {} RPM", speed);
 
 // Stream-style
 XLOG_DEBUG_STREAM("Position: " << x << ", " << y);
+```
+
+For a hard-real-time loop, use the `XLOG_RT_*` front-end instead:
+```cpp
+#include "xmsigma/logging/rt_logger.hpp"
+
+xmotion::RtLogger rt("ctrl_loop");          // one logger owned by the loop
+XLOG_RT_INFO(rt, "cycle {} tau={:.3f}", cycle, tau);  // wait-free, no heap/syscall
+rt.Flush();                                 // NON-RT: drain before exit/shutdown
 ```
 
 **Important:** Do not make logging calls after a signal is received (undefined behavior).
@@ -143,14 +158,15 @@ XLOG_DEBUG_STREAM("Position: " << x << ", " << y);
 ### What belongs here (and what doesn't)
 
 Add to xmSigma only things every component could share: logging facilities, or a type that is genuinely spoken by more than one layer. Concretely:
-- A new **common type** goes in `src/types/include/xmotion/types/` (header-only; no CMakeLists change needed).
+- A new **common type** goes in `include/xmsigma/types/` (header-only; no CMakeLists change needed).
 - A new **driver/control interface** does **not** go here — it belongs to its owning component (driver interfaces → xmMu's `xmmu/hal/`; control/motion types → xmNabla). If a would-be "common" type is only used by one upper layer, put it in that layer instead.
 
 ### Testing
 
 - Tests use GoogleTest (bundled in `third_party/googletest`)
-- Test files located in module `test/` directories (e.g., `src/logging/test/`)
-- Add new tests to module's `test/CMakeLists.txt`
+- Test files live in the top-level `test/` directory (e.g. `test/test_rt_logger.cpp`)
+- Add new tests to `test/CMakeLists.txt`
+- The lock-free RT loggers carry property-based tests run under TSan + ASan/UBSan in CI
 - All test executables output to `build/bin/`
 
 ### Build Modes

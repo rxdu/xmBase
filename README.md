@@ -3,17 +3,19 @@
   xmSigma&nbsp;·&nbsp;Σ
 </h1>
 
-<p align="center"><b>Foundation layer for the xMotion family</b> — interfaces, logging and common types.<br>
+<p align="center"><b>Foundation layer for the xMotion family</b> — logging and common types.<br>
 The substrate every other component plugs into.</p>
 
 ---
 
 `xmSigma` is the Σ foundation of the **xMotion** product family. It provides the low-level
-contracts and utilities shared across components:
+utilities shared across components:
 
-- **Interfaces** — hardware-driver interfaces (motors, sensors, CAN, serial, …) and control interfaces.
-- **Logging** — an spdlog-based logging system configurable via environment variables.
-- **Common types** — geometry and trajectory types used throughout the stack.
+- **Logging** — a dual-mode logging system on an spdlog backend: an async **soft-RT** front-end (`XLOG_*`) for general use, and a lock-free, allocation-free **hard-RT** front-end (`XLOG_RT_*`) for control loops with a hard deadline. Configurable via environment variables.
+- **Common types** — the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla).
+
+> Driver/control interfaces are intentionally **not** here — they belong to their owning
+> component (xmMu's HAL). Keeping Σ free of upper-layer specifics is a load-bearing design rule.
 
 It builds either standalone or embedded as a module in another project, and ships its own CI +
 Debian packaging so downstream components can consume released artifacts rather than source.
@@ -22,12 +24,16 @@ Debian packaging so downstream components can consume released artifacts rather 
 > components include [xmNabla](https://github.com/rxdu/xmNabla) (motion algorithms) and
 > [xmMu](https://github.com/rxdu/xmMu) (host hardware drivers).
 
-## Modules
+## Layout
 
-| Module          | Description                                                        |
-|-----------------|-------------------------------------------------------------------|
-| `src/interface` | hardware-driver and control interface definitions + common types  |
-| `src/logging`   | spdlog-based logging with `XLOG_*` environment configuration       |
+Headers live under `include/xmsigma/`; the compiled logging sources under `src/`. Everything
+builds into one CMake target, `xmotion::xmSigma`.
+
+| Path                              | Description                                                                 |
+|-----------------------------------|-----------------------------------------------------------------------------|
+| `include/xmsigma/logging/`        | logging front-ends: `xlogger` (`XLOG_*`, soft-RT), `rt_logger` / `rt_logger_mpsc` (`XLOG_RT_*`, hard-RT), plus `csv_logger`, `ctrl_logger`, `event_logger` |
+| `include/xmsigma/types/`          | header-only common types: `base_types.hpp`, `geometry_types.hpp`            |
+| `src/`                            | spdlog-backed logging implementation (the compiled part)                    |
 
 ## Build
 
@@ -40,7 +46,24 @@ make -j
 Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (default `ON`),
 `USE_SYS_SPDLOG` (use system spdlog, default `ON`).
 
-## Logging configuration
+## Logging
+
+Two front-ends, picked by deadline (format strings use fmt `{}` syntax, not printf):
+
+```cpp
+#include "xmsigma/logging/xlogger.hpp"     // soft-RT (async)
+XLOG_INFO("motor speed: {} RPM", speed);
+
+#include "xmsigma/logging/rt_logger.hpp"   // hard-RT (lock-free, drop-on-full)
+xmotion::RtLogger rt("ctrl_loop");
+XLOG_RT_INFO(rt, "cycle {} tau={:.3f}", cycle, tau);   // wait-free, no heap/syscall
+rt.Flush();                                            // NON-RT: drain at shutdown
+```
+
+The hard-RT path also honors `XLOG_LEVEL` and can be retargeted at runtime via `rt.SetLevel(...)`.
+See [docs/logging.md](docs/logging.md) for the full contract (drain-thread placement, timestamps).
+
+### Environment configuration
 
 * `XLOG_LEVEL`: 0–6 (0: TRACE, 1: DEBUG, 2: INFO, 3: WARN, 4: ERROR, 5: FATAL, 6: OFF)
 * `XLOG_ENABLE_LOGFILE`: 0 or 1
