@@ -116,7 +116,8 @@ add_library(xmSigma STATIC
     src/ctrl_logger.cpp
     src/default_logger.cpp
     src/logger_vendor_spdlog.cpp
-    src/rt_logger.cpp)
+    src/rt_logger.cpp
+    src/rt_logger_mpsc.cpp)
 target_include_directories(xmSigma PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
