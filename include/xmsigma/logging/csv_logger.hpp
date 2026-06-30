@@ -35,9 +35,10 @@ class CsvLogger : public SpecializedLogger {
     build_string(o, value...);
 
     std::string data = o.str();
-    data.pop_back();
+    if (data.empty()) return;   // no fields appended (called with no args)
+    data.pop_back();            // drop the trailing ','
 
-    logger_->info(data);
+    logger_->info("{}", data);  // data is the payload, never a format string
 #endif
   }
 };

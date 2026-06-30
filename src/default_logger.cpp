@@ -12,14 +12,18 @@
 #include "xmsigma/logging/details/logging_utils.hpp"
 
 namespace xmotion {
-std::shared_ptr<DefaultLogger> DefaultLogger::GetInstance() {
-  static std::atomic<bool> first_time_run{true};
-  static std::shared_ptr<DefaultLogger> logger =
-      std::shared_ptr<DefaultLogger>(new DefaultLogger());
-  if (first_time_run.exchange(false)) {
-    logger->Initialize(GetCurrentProcessName(), "%^[%l] [%E.%F] [%n]: %v%$",
-                       ".log");
-  }
-  return logger;
+DefaultLogger &DefaultLogger::GetInstance() {
+  // Construct AND initialize inside the static initializer: the C++ runtime's
+  // thread-safe-static guard serializes this, so no other thread can obtain the
+  // instance until Initialize() has fully completed (fixes the old init race
+  // where a second thread could Log() through a not-yet-assigned logger_).
+  // Intentionally leaked — the logger must outlive any static destructor that
+  // might log during shutdown.
+  static DefaultLogger *instance = [] {
+    auto *p = new DefaultLogger();
+    p->Initialize(GetCurrentProcessName(), "%^[%l] [%E.%F] [%n]: %v%$", ".log");
+    return p;
+  }();
+  return *instance;
 }
 }  // namespace xmotion

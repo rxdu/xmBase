@@ -37,28 +37,30 @@ class EventLogger : public SpecializedLogger {
     build_string(o, value...);
 
     std::string data = o.str();
-    data.pop_back();
+    if (data.empty()) return;   // no fields appended (called with no args)
+    data.pop_back();            // drop the trailing ','
 
-    logger_->info(data);
+    logger_->info("{}", data);  // data is the payload, never a format string
 #endif
   }
 
-  // logger wrapper functions
-  void LogInfo(std::string msg) {
+  // logger wrapper functions — msg is payload, passed as a fmt argument so that
+  // any '{'/'}' in it is not parsed as a format placeholder.
+  void LogInfo(const std::string &msg) {
 #ifdef ENABLE_LOGGING
-    logger_->info(msg);
+    logger_->info("{}", msg);
 #endif
   }
 
-  void LogWarn(std::string msg) {
+  void LogWarn(const std::string &msg) {
 #ifdef ENABLE_LOGGING
-    logger_->warn(msg);
+    logger_->warn("{}", msg);
 #endif
   }
 
-  void LogFatal(std::string msg) {
+  void LogFatal(const std::string &msg) {
 #ifdef ENABLE_LOGGING
-    logger_->critical(msg);
+    logger_->critical("{}", msg);
 #endif
   }
 
