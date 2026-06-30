@@ -9,3 +9,7 @@ gtest_discover_tests(test_csv_logger)
 add_executable(test_xlogger test_xlogger.cpp)
 target_link_libraries(test_xlogger xmSigma gtest gtest_main)
 gtest_discover_tests(test_xlogger)
+
+add_executable(test_rt_logger test_rt_logger.cpp)
+target_link_libraries(test_rt_logger xmSigma gtest gtest_main)
+gtest_discover_tests(test_rt_logger)

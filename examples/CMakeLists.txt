@@ -8,3 +8,6 @@ target_link_libraries(ctrl_logger_example xmSigma)
 
 add_executable(xlogger_example xlogger_example.cpp)
 target_link_libraries(xlogger_example xmSigma)
+
+add_executable(rt_logger_example rt_logger_example.cpp)
+target_link_libraries(rt_logger_example xmSigma)
