@@ -70,7 +70,19 @@ std::string MakeTempLogDir() {
   char* dir = mkdtemp(tmpl);
   EXPECT_NE(dir, nullptr);
   setenv("XLOG_FOLDER", dir, 1);
+  unsetenv("XLOG_LEVEL");  // pin ambient level (MpscRtLogger now honors it)
   return std::string(dir);
+}
+
+bool FileTreeContains(const std::string& dir, const std::string& needle) {
+  for (const auto& e : fs::recursive_directory_iterator(dir)) {
+    if (!e.is_regular_file()) continue;
+    std::ifstream f(e.path());
+    std::string content((std::istreambuf_iterator<char>(f)),
+                        std::istreambuf_iterator<char>());
+    if (content.find(needle) != std::string::npos) return true;
+  }
+  return false;
 }
 
 // Parse "p=<producer>;s=<seq>;" tokens from all files, IN FILE ORDER (= the
@@ -217,4 +229,39 @@ TEST(MpscRtLoggerTest, HotPathDoesNotAllocate) {
   rt.Flush();
   fs::remove_all(dir);
 #endif
+}
+
+// Runtime level filter suppresses below-threshold records without counting them
+// as ring-full drops.
+TEST(MpscRtLoggerTest, RuntimeLevelFilterSuppressesBelowThreshold) {
+  const std::string dir = MakeTempLogDir();
+  MpscRtLogger rt("mrt_level", 8192, /*log_to_file=*/true);
+  rt.SetLevel(xmotion::LogLevel::kWarn);
+  EXPECT_EQ(rt.GetLevel(), xmotion::LogLevel::kWarn);
+
+  for (uint64_t i = 0; i < 1000; ++i) XLOG_RT_INFO(rt, "p=0;s={};", i);  // drop
+  XLOG_RT_ERROR(rt, "p=0;s={};", 9999u);                                 // keep
+  rt.Flush();
+
+  EXPECT_EQ(rt.dropped(), 0u);
+  const std::vector<Record> recs = ReadRecordsInOrder(dir);
+  ASSERT_EQ(recs.size(), 1u) << "only the ERROR record survives the kWarn filter";
+  EXPECT_EQ(recs.front().seq, 9999u);
+  fs::remove_all(dir);
+}
+
+// A malformed format string is caught on the hot path (no crash, bounded
+// diagnostic), and subsequent well-formed records still flow.
+TEST(MpscRtLoggerTest, MalformedFormatDoesNotCrash) {
+  const std::string dir = MakeTempLogDir();
+  {
+    MpscRtLogger rt("mrt_badfmt", 64, /*log_to_file=*/true);
+    XLOG_RT_INFO(rt, "missing arg {}");    // throws inside fmt -> caught
+    XLOG_RT_INFO(rt, "p=0;s={};", 42u);    // normal record still works
+    rt.Flush();
+    EXPECT_EQ(rt.dropped(), 0u);
+  }
+  EXPECT_TRUE(FileTreeContains(dir, "log format error"));
+  EXPECT_TRUE(FileTreeContains(dir, "s=42;"));
+  fs::remove_all(dir);
 }

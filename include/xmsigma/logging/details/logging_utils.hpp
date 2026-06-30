@@ -39,6 +39,18 @@ inline std::string GetEnvironmentVariable(const std::string &name) {
 #endif
 }
 
+// Parse XLOG_LEVEL (0..6) into a LogLevel, falling back when unset or invalid.
+// Uses strtol (not stoi) so it never throws — safe to call from -fno-exceptions
+// builds and from constructors on any path.
+inline LogLevel ResolveLogLevelFromEnv(LogLevel fallback = default_log_level) {
+  const std::string value = GetEnvironmentVariable(log_level_env_var_name);
+  if (value.empty()) return fallback;
+  char *end = nullptr;
+  const long level = std::strtol(value.c_str(), &end, 10);
+  if (end == value.c_str() || level < 0 || level > 6) return fallback;
+  return static_cast<LogLevel>(level);
+}
+
 // --- process -------------------------------------------------------------
 inline std::string GetCurrentProcessName() {
 #if defined(_WIN32) || defined(_WIN64)
@@ -82,23 +94,35 @@ inline std::string GetDefaultLogPath() {
 }
 
 // --- filename builders ---------------------------------------------------
+// Thread-safe localtime: localtime() returns a pointer into a shared static
+// struct, so two threads building filenames concurrently can corrupt each
+// other's result. Use the reentrant variant.
+inline struct tm LocalTimeNow(time_t t) {
+  struct tm out {};
+#if defined(_WIN32) || defined(_WIN64)
+  localtime_s(&out, &t);
+#else
+  localtime_r(&t, &out);
+#endif
+  return out;
+}
+
 // Caller supplies the directory; yields "<path>/<prefix>.<YYYYmmddHHMMSS>.csv".
 inline std::string CreateLogFileName(std::string prefix, std::string path) {
-  time_t t = time(0);
+  struct tm now = LocalTimeNow(time(0));
   char buffer[80];
-  strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", localtime(&t));
+  strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", &now);
   return path + "/" + prefix + "." + std::string(buffer) + ".csv";
 }
 
 // Auto-derives "<logpath>/<YYYYmmdd>/<prefix>-<YYYYmmdd-HHMMSS><suffix>".
 inline std::string CreateLogNameWithFullPath(std::string prefix,
                                              std::string suffix) {
-  time_t t = time(0);
-  struct tm *now = localtime(&t);
+  struct tm now = LocalTimeNow(time(0));
   char ts[80];
-  strftime(ts, sizeof(ts), "%Y%m%d-%H%M%S", now);
+  strftime(ts, sizeof(ts), "%Y%m%d-%H%M%S", &now);
   char day[80];
-  strftime(day, sizeof(day), "%Y%m%d", now);
+  strftime(day, sizeof(day), "%Y%m%d", &now);
   return GetDefaultLogPath() + "/" + std::string(day) + "/" + prefix + "-" +
          std::string(ts) + suffix;
 }
