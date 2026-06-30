@@ -37,6 +37,10 @@ RtLogger::RtLogger(std::string name, std::size_t ring_capacity,
   mask_ = cap - 1;
   ring_.reset(new Record[cap]);
 
+  // Seed the runtime level from XLOG_LEVEL so the hard-RT path honors the same
+  // level as the XLOG_* soft-RT path (SetLevel() can override at runtime).
+  min_level_.store(ResolveLogLevelFromEnv(), std::memory_order_relaxed);
+
   // The sink logger is touched ONLY by the drain thread, so a plain synchronous
   // logger is correct here — its I/O is already off the producer's hot path.
   std::vector<spdlog::sink_ptr> sinks;
