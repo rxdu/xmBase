@@ -25,3 +25,7 @@ gtest_discover_tests(test_rt_logger)
 add_executable(test_mpsc_rt_logger test_mpsc_rt_logger.cpp)
 target_link_libraries(test_mpsc_rt_logger xmSigma gtest gtest_main)
 gtest_discover_tests(test_mpsc_rt_logger)
+
+add_executable(test_types test_types.cpp)
+target_link_libraries(test_types xmSigma gtest gtest_main)
+gtest_discover_tests(test_types)
