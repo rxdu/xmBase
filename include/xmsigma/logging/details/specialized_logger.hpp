@@ -36,6 +36,15 @@ class SpecializedLogger {
   SpecializedLogger(const SpecializedLogger &) = delete;
   SpecializedLogger &operator=(const SpecializedLogger &) = delete;
 
+  // Posts a flush of the (async) sink so buffered rows reach disk. Call this
+  // before the program exits — these loggers are async, and relying on
+  // spdlog::shutdown() alone to drain them is not reliable for every logger.
+  void Flush() {
+#ifdef ENABLE_LOGGING
+    if (logger_) logger_->flush();
+#endif
+  }
+
  protected:
   std::shared_ptr<spdlog::logger> logger_;
 

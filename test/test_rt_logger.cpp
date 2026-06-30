@@ -4,9 +4,11 @@
  * Copyright (c) 2026 Ruixiang Du (rdu)
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -80,5 +82,67 @@ TEST(RtLoggerTest, DropsWhenRingFull) {
   }
   EXPECT_GT(dropped, 0u);        // the ring overflowed
   EXPECT_LE(dropped, kBurst);    // never more than produced
+  fs::remove_all(dir);
+}
+
+// The real correctness test for the lock-free ring: with capacity > N (no
+// drops), EVERY record must reach the sink exactly once and intact — no loss,
+// no torn/corrupted slot. (Run under TSan this also validates the memory
+// ordering between producer and drain thread.)
+TEST(RtLoggerTest, DeliversEveryRecordIntactWhenNotOverflowing) {
+  const std::string dir = MakeTempLogDir();
+  constexpr int kN = 2000;
+  {
+    RtLogger rt("rt_complete", 8192, /*log_to_file=*/true);  // ring > kN
+    for (int i = 0; i < kN; ++i) XLOG_RT_INFO(rt, "seq={};", i);
+    rt.Flush();
+    EXPECT_EQ(rt.dropped(), 0u);
+  }
+
+  std::set<int> seen;
+  for (const auto& e : fs::recursive_directory_iterator(dir)) {
+    if (!e.is_regular_file()) continue;
+    std::ifstream f(e.path());
+    std::string line;
+    while (std::getline(f, line)) {
+      const auto p = line.find("seq=");
+      if (p == std::string::npos) continue;
+      const auto q = line.find(';', p);
+      if (q == std::string::npos) continue;
+      seen.insert(std::stoi(line.substr(p + 4, q - (p + 4))));
+    }
+  }
+  EXPECT_EQ(seen.size(), static_cast<std::size_t>(kN))
+      << "every record must arrive exactly once and intact";
+  EXPECT_EQ(*seen.begin(), 0);
+  EXPECT_EQ(*seen.rbegin(), kN - 1);
+  fs::remove_all(dir);
+}
+
+// A message longer than the fixed slot must be truncated to kMaxMsgLen, never
+// overflow the buffer (ASan would flag an overflow).
+TEST(RtLoggerTest, TruncatesOversizedMessage) {
+  const std::string dir = MakeTempLogDir();
+  const std::string big(1000, 'A');  // >> kMaxMsgLen
+  {
+    RtLogger rt("rt_trunc", 64, /*log_to_file=*/true);
+    XLOG_RT_INFO(rt, "{}", big);
+    rt.Flush();
+  }
+
+  std::size_t max_run = 0, cur = 0;
+  for (const auto& e : fs::recursive_directory_iterator(dir)) {
+    if (!e.is_regular_file()) continue;
+    std::ifstream f(e.path());
+    std::string content((std::istreambuf_iterator<char>(f)),
+                        std::istreambuf_iterator<char>());
+    for (char c : content) {
+      cur = (c == 'A') ? cur + 1 : 0;
+      max_run = std::max(max_run, cur);
+    }
+  }
+  EXPECT_GT(max_run, 0u);
+  EXPECT_LE(max_run, RtLogger::kMaxMsgLen)
+      << "oversized message must be truncated to the fixed buffer";
   fs::remove_all(dir);
 }

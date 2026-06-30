@@ -84,3 +84,26 @@ TEST(CsvLoggerTest, WritesLoggedRowsToCsvFile) {
 
   fs::remove_all(dir);
 }
+
+// Regression: LogData() with no fields used to pop_back() an empty string (UB).
+// It must be safely ignored, not corrupt the stream or crash.
+TEST(CsvLoggerTest, ZeroArgLogDataIsSafelyIgnored) {
+  const std::string dir = MakeUniqueTempDir();
+  ASSERT_FALSE(dir.empty());
+
+  {
+    xmotion::CsvLogger logger("test_csv_empty", dir);
+    logger.LogData();         // no fields -> previously UB
+    logger.LogData(10, 20);   // a real row in between
+    logger.LogData();         // again
+  }
+  spdlog::shutdown();
+
+  const auto csv_files = FindCsvFiles(dir);
+  ASSERT_EQ(csv_files.size(), 1u);
+  const auto lines = ReadLines(csv_files.front());
+  ASSERT_EQ(lines.size(), 1u) << "empty LogData() calls must produce no rows";
+  EXPECT_EQ(lines[0], "10,20");
+
+  fs::remove_all(dir);
+}

@@ -97,7 +97,30 @@ for (;;) {                              // 1 kHz control loop
 level `n` — so trace/debug cost exactly zero in a release RT build regardless of
 the runtime level.
 
-## 5. Non-goals / future
+## 5. Flushing the data loggers
+
+`CsvLogger` / `CtrlLogger` / `EventLogger` are async (spdlog `async_factory`).
+Buffered rows are NOT guaranteed to reach disk on their own — call `Flush()`
+before the program exits. Relying on `spdlog::shutdown()` alone is not reliable
+for every logger (a singleton data logger that outlives the shutdown call can be
+left undrained). `Flush()` posts a sink flush so the worker writes out what's
+queued.
+
+## 6. Testing & validation
+
+- Unit tests pin each fix: brace-laden payloads logged verbatim (format-string
+  injection), zero-arg `LogData()`/`LogEvent()` (the old `pop_back` UB), the
+  `_STREAM` macros not evaluating their args when the level is disabled, macro
+  use in an unbraced `if/else` (do-while hygiene), `CtrlLogger` header/data
+  round-trip and the out-of-range-id guard.
+- `RtLogger`: content-completeness (every record read back intact when not
+  overflowing), drop-on-full, and oversized-message truncation.
+- The suite runs clean under **ASan + UBSan**. Under **TSan**, `RtLogger` (the
+  lock-free ring) is race-free; the async `DefaultLogger` path raises a
+  "double lock" warning that reproduces with *bare* spdlog 1.9.2 (no xmSigma
+  code) and does not deadlock — it is an upstream spdlog artifact, not ours.
+
+## 7. Non-goals / future
 - MPSC RT logger (multiple producers per ring) — current `RtLogger` is SPSC (one
   RT thread per logger, the common control-loop shape).
 - Zero-format binary logging (see §2) — escalation, not default.
