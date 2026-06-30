@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <ostream>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -29,6 +30,15 @@ namespace {
 
 int CurrentLevel() {
   return static_cast<int>(DefaultLogger::GetInstance().GetLoggerLevel());
+}
+
+// Streamable probe that records whether its operator<< actually ran — used to
+// prove the _STREAM macros do NOT build the message when the level is disabled.
+int g_probe_evals = 0;
+struct EvalProbe {};
+std::ostream& operator<<(std::ostream& os, const EvalProbe&) {
+  ++g_probe_evals;
+  return os << "probed";
 }
 
 }  // namespace
@@ -96,4 +106,37 @@ TEST(XLoggerTest, WritesKnownMessageToLogFile) {
   EXPECT_TRUE(found_marker) << "expected the logged marker in the log file";
 
   fs::remove_all(dir);
+}
+
+// The _STREAM macros must gate on the level BEFORE building the message, so a
+// disabled stream-log in a hot loop evaluates none of its arguments.
+TEST(XLoggerTest, StreamMacroSkipsArgEvalWhenLevelDisabled) {
+  g_probe_evals = 0;
+
+  XLOG_LEVEL(static_cast<int>(LogLevel::kError));  // debug disabled
+  XLOG_DEBUG_STREAM("v=" << EvalProbe{});
+  EXPECT_EQ(g_probe_evals, 0) << "disabled stream-log must not evaluate args";
+
+  XLOG_LEVEL(static_cast<int>(LogLevel::kTrace));  // debug enabled
+  XLOG_DEBUG_STREAM("v=" << EvalProbe{});
+  EXPECT_EQ(g_probe_evals, 1) << "enabled stream-log must evaluate args once";
+}
+
+// Macros must be usable as a single statement in an unbraced if/else — this
+// compiles only because they are do-while(0) wrapped (the old {} blocks orphan
+// the else). The successful compile IS the assertion.
+TEST(XLoggerTest, MacrosComposeInUnbracedIfElse) {
+  int x = 1;
+  if (x == 2)
+    XLOG_INFO("two");
+  else
+    XLOG_INFO("not two");
+
+  for (int i = 0; i < 2; ++i)
+    if (i == 0)
+      XLOG_TRACE("t");
+    else
+      XLOG_DEBUG("d");
+
+  SUCCEED();
 }
