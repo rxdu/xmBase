@@ -1,6 +1,6 @@
 # ADR 0001 — Foundation utilities in xmSigma (containers, math, serialization)
 
-- Status: Proposed (RingBuffer promotion landed; further tranches pending)
+- Status: Accepted (RingBuffer + serialization tranches landed; further tranches pending)
 - Date: 2026-06-30
 - Scope: what generic, reusable data structures and algorithms belong in the Σ foundation
 
@@ -32,8 +32,8 @@ The bar for promotion (Σ's charter): **universal across the family, spoken by m
 | **RingBuffer** | duplicated μ (`async_port`) + ∇ (`imview`), **drifted** | std-only | **PROMOTE now** + delete copies on re-pin |
 | **ThreadSafeQueue** | 2 copies in ∇ (`common/event`, `imview`) | std-only | consolidate → promote (`util/`) |
 | **Event dispatcher/emitter** | full module duplicated in ∇ (`common/event` vs `imview`) | std-only | consolidate → promote (`util/`) |
-| **Byte pack/unpack (endian get/set)** | hand-rolled in vesc, sbus, waveshare drivers (4+ sites) | std-only | extract primitives → promote (`serialization/`) |
-| **Checksum/CRC family** (CRC-8 Maxim, CRC-16, additive) | re-derived per driver (ddsm, SCServo, vesc) | std-only | promote a small `crc`/`checksum` header (`serialization/`) |
+| **Byte pack/unpack (endian get/set)** | hand-rolled in vesc, sbus, waveshare drivers (4+ sites) | std-only | **PROMOTED** — `serialization/byte_order.hpp` |
+| **Checksum/CRC family** (CRC-8 Maxim, CRC-16, additive) | re-derived per driver (ddsm, SCServo, vesc) | std-only | **PROMOTED** — `serialization/checksum.hpp` |
 | **FSM template** (`std::variant`-based) | single generic copy in ∇ `control/fsm` | std-only | promote (`util/`); fix stale include guard |
 | **Angle/units math** (`WrapToPi`, deg/rad, rpm↔rad/s) | hand-rolled in ∇ kinematics; μ `units.hpp` speaks the same | `<cmath>` | promote (`math/`) |
 | **clamp/saturate/lerp** | bespoke `Clamp` in vesc + sim motor | std-only | prefer `std::clamp`; bundle `saturate`/`lerp` into `math/` if wanted |
@@ -52,4 +52,8 @@ The bar for promotion (Σ's charter): **universal across the family, spoken by m
 
 ## Status
 
-Landed in this change: `xmsigma/container/ring_buffer.hpp` + `test/test_ring_buffer.cpp` (overwrite-accounting across laps, PeekAt range, Peek/Read clamping; passing locally and in CI). The μ/∇ copies are **not** yet removed — that is the consolidation follow-up so the promotion stays additive and non-breaking until consumers re-pin.
+Landed:
+- `xmsigma/container/ring_buffer.hpp` + `test/test_ring_buffer.cpp` (overwrite-accounting across laps, PeekAt range, Peek/Read clamping). μ consolidated onto it (its drifted copy deleted); ∇'s quickviz copy kept by design.
+- `xmsigma/serialization/byte_order.hpp` (endian load/store, signed variants) and `xmsigma/serialization/checksum.hpp` (CRC-8/MAXIM-DOW, CRC-16/XMODEM, inverted-sum), matched to the family's devices and pinned to standard catalogue check values in `test/test_serialization.cpp`.
+
+Promotions are additive/non-breaking; the μ-driver consolidation onto the serialization helpers (VESC, DDSM, SCServo, SBUS) is the follow-up, replacing each hand-rolled routine with the Σ primitive after re-pin. Remaining tranches: `util/` (ThreadSafeQueue, event dispatcher, FSM template) and `math/` (angle/units).
