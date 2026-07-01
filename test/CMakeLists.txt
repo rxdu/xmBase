@@ -29,3 +29,7 @@ gtest_discover_tests(test_mpsc_rt_logger)
 add_executable(test_types test_types.cpp)
 target_link_libraries(test_types xmSigma gtest gtest_main)
 gtest_discover_tests(test_types)
+
+add_executable(test_ring_buffer test_ring_buffer.cpp)
+target_link_libraries(test_ring_buffer xmSigma gtest gtest_main)
+gtest_discover_tests(test_ring_buffer)
