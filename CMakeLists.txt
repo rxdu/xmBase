@@ -139,10 +139,6 @@ if (NOT DEFINED _xmbase_install_targets)
   set(_xmbase_install_targets xmBase)
 endif ()
 add_library(xmotion::xmBase ALIAS xmBase)
-# Backward-compat: the foundation was renamed xmSigma -> xmBase (ADR 0003).
-# Keep xmotion::xmSigma working for in-tree/add_subdirectory consumers (xmMu,
-# xmNabla, the umbrella) until they migrate to xmotion::xmBase.
-add_library(xmotion::xmSigma ALIAS xmBase)
 
 install(TARGETS ${_xmbase_install_targets} EXPORT xmBaseTargets
     LIBRARY DESTINATION lib ARCHIVE DESTINATION lib RUNTIME DESTINATION bin
@@ -192,15 +188,6 @@ configure_file(cmake/xmBaseConfig.cmake.in xmBaseConfig.cmake @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmBaseConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/xmBaseConfigVersion.cmake"
     DESTINATION lib/cmake/xmBase)
-
-# Backward-compat package config: installed consumers that still call
-# find_package(xmSigma) forward to xmBase and get xmotion::xmSigma (ADR 0003).
-configure_file(cmake/xmSigmaConfig.cmake.in xmSigmaConfig.cmake @ONLY)
-configure_file("${CMAKE_CURRENT_BINARY_DIR}/xmBaseConfigVersion.cmake"
-    xmSigmaConfigVersion.cmake COPYONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmSigmaConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/xmSigmaConfigVersion.cmake"
-    DESTINATION lib/cmake/xmSigma)
 
 # Packaging support
 set(CPACK_DEBIAN_PACKAGE_NAME "libxmotion-base")

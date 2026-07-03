@@ -2,8 +2,7 @@ include(CMakeFindDependencyMacro)
 
 # Re-discover the dependencies that xmBase's public (imported) targets reference,
 # so downstream find_package(xmBase) consumers get a usable xmotion::xmBase
-# target (also aliased xmotion::xmSigma for backward compat via the exported
-# targets file / the compat xmSigma package config).
+# target. Consumers link xmotion::xmBase.
 find_dependency(Threads REQUIRED)
 find_dependency(Eigen3 REQUIRED NO_MODULE)   # xmotion::xmBase links Eigen3::Eigen
 find_dependency(spdlog REQUIRED)             # xmotion::xmBase links spdlog::spdlog (USE_SYS_SPDLOG)

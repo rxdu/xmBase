@@ -13,7 +13,7 @@
 
 #include "gtest/gtest.h"
 
-#include "xmsigma/container/ring_buffer.hpp"
+#include "xmbase/container/ring_buffer.hpp"
 
 using xmotion::RingBuffer;
 

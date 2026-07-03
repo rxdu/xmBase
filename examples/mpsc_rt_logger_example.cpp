@@ -17,8 +17,8 @@
 #include <thread>
 #include <vector>
 
-#include "xmsigma/logging/rt_logger_mpsc.hpp"
-#include "xmsigma/logging/xlogger.hpp"
+#include "xmbase/logging/rt_logger_mpsc.hpp"
+#include "xmbase/logging/xlogger.hpp"
 
 int main() {
   XLOG_INFO("mpsc_rt_logger_example: 3 control loops sharing one RT logger");

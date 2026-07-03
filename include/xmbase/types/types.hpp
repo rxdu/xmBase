@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include "xmsigma/types/scalar.hpp"
-#include "xmsigma/types/time.hpp"
-#include "xmsigma/types/vector.hpp"
-#include "xmsigma/types/geometry.hpp"
-#include "xmsigma/types/stamped.hpp"
+#include "xmbase/types/scalar.hpp"
+#include "xmbase/types/time.hpp"
+#include "xmbase/types/vector.hpp"
+#include "xmbase/types/geometry.hpp"
+#include "xmbase/types/stamped.hpp"

@@ -17,13 +17,13 @@
 #include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
 
-#include "xmsigma/logging/event_logger.hpp"
+#include "xmbase/logging/event_logger.hpp"
 
 namespace fs = std::filesystem;
 
 namespace {
 std::string MakeUniqueTempDir() {
-  char tmpl[] = "/tmp/xmsigma_evt_XXXXXX";
+  char tmpl[] = "/tmp/xmbase_evt_XXXXXX";
   char* path = mkdtemp(tmpl);
   EXPECT_NE(path, nullptr);
   return path == nullptr ? std::string{} : std::string(path);

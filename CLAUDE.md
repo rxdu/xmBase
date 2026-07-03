@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 xmBase is the foundation library of the XMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
 - **Logging utilities**: spdlog-based logging system with environment variable configuration
-- **Common types**: the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation)
+- **Common types**: the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation)
 
 It is exposed as a **single** CMake target, `xmotion::xmBase`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmDriver, xmNavigation), not here.
 
@@ -67,15 +67,15 @@ sudo apt-get install libeigen3-dev libspdlog-dev
 ### Module Structure
 
 Everything compiles into one target, `xmotion::xmBase`. Headers live under
-`include/xmsigma/`; the compiled logging sources under `src/`.
+`include/xmbase/`; the compiled logging sources under `src/`.
 
-1. **logging/** (`include/xmsigma/logging/`): logging front-ends; the spdlog-backed
+1. **logging/** (`include/xmbase/logging/`): logging front-ends; the spdlog-backed
    implementation is the compiled part under `src/`.
    - `xlogger.hpp`: soft-RT macros (`XLOG_INFO`, `XLOG_DEBUG`, …) — async spdlog default. fmt `{}` syntax; also stream-style (`XLOG_*_STREAM`).
    - `rt_logger.hpp` / `rt_logger_mpsc.hpp`: hard-RT macros (`XLOG_RT_*`) — lock-free, allocation-free `RtLogger` (single-producer) and `MpscRtLogger` (multi-producer).
    - `ctrl_logger.hpp`: control-specific logger; `csv_logger.hpp`: CSV file logger; `event_logger.hpp`: structured event logger.
 
-2. **types/** (`include/xmsigma/types/`): Header-only common type vocabulary (namespace `xmotion`)
+2. **types/** (`include/xmbase/types/`): Header-only common type vocabulary (namespace `xmotion`)
    - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
    - `types.hpp`: umbrella that pulls in all of the above.
    - `quantities.hpp`: **opt-in** strong-typed quantities (tagged `Vec3`: `Force`, `Torque`, `LinearVelocity`, …) — distinct types so the compiler catches quantity mix-ups; reach Eigen via `.vec()`. Not included by the umbrella.
@@ -91,7 +91,7 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
 
 **Logging Module (dual-mode):**
 - Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
-  compile-time `XMSIGMA_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
+  compile-time `XMBASE_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
 - **Soft-RT default (`XLOG_*`):** async spdlog (caller formats + enqueues, a worker thread
   does the I/O); a full queue drops the oldest record rather than blocking. Singleton
   `DefaultLogger`. Use for everything without a hard deadline.
@@ -115,7 +115,7 @@ The logging system is controlled via environment variables:
 
 **Usage in code** (format strings use fmt `{}` syntax, **not** printf):
 ```cpp
-#include "xmsigma/logging/xlogger.hpp"
+#include "xmbase/logging/xlogger.hpp"
 
 // fmt-style (soft-RT, async)
 XLOG_INFO("Motor speed: {} RPM", speed);
@@ -126,7 +126,7 @@ XLOG_DEBUG_STREAM("Position: " << x << ", " << y);
 
 For a hard-real-time loop, use the `XLOG_RT_*` front-end instead:
 ```cpp
-#include "xmsigma/logging/rt_logger.hpp"
+#include "xmbase/logging/rt_logger.hpp"
 
 xmotion::RtLogger rt("ctrl_loop");          // one logger owned by the loop
 XLOG_RT_INFO(rt, "cycle {} tau={:.3f}", cycle, tau);  // wait-free, no heap/syscall
@@ -161,7 +161,7 @@ rt.Flush();                                 // NON-RT: drain before exit/shutdow
 ### What belongs here (and what doesn't)
 
 Add to xmBase only things every component could share: logging facilities, or a type that is genuinely spoken by more than one layer. Concretely:
-- A new **common type** goes in `include/xmsigma/types/` (header-only; no CMakeLists change needed).
+- A new **common type** goes in `include/xmbase/types/` (header-only; no CMakeLists change needed).
 - A new **driver/control interface** does **not** go here — it belongs to its owning component (driver interfaces → xmDriver's `xmmu/hal/`; control/motion types → xmNavigation). If a would-be "common" type is only used by one upper layer, put it in that layer instead.
 
 ### Testing
@@ -196,7 +196,6 @@ Package details:
 - Package name: libxmotion-base
 - Default install prefix: /opt/xmotion
 - Exports a single CMake target, `xmotion::xmBase` (via `find_package(xmBase)`)
-- Backward compat (renamed xmSigma → xmBase, ADR 0003): `find_package(xmSigma)` and the `xmotion::xmSigma` target still work (compat config + alias); the header include prefix remains `xmsigma/` for now
 - Includes CMake config files for find_package() support
 
 ## ROS Integration
