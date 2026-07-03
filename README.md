@@ -1,33 +1,37 @@
 <h1 align="center">
-  <img src="docs/xmsigma.svg" width="96" alt="xmSigma"><br>
-  xmSigma&nbsp;·&nbsp;Σ
+  <img src="docs/xmsigma.svg" width="96" alt="xmBase"><br>
+  xmBase&nbsp;·&nbsp;Σ
 </h1>
 
-<p align="center"><b>Foundation layer for the xMotion family</b> — logging and common types.<br>
+<p align="center"><b>Foundation layer for the XMotion family</b> — logging and common types.<br>
 The substrate every other component plugs into.</p>
 
 ---
 
-`xmSigma` is the Σ foundation of the **xMotion** product family. It provides the low-level
+`xmBase` is the foundation of the **XMotion** product family. It provides the low-level
 utilities shared across components:
 
 - **Logging** — a dual-mode logging system on an spdlog backend: an async **soft-RT** front-end (`XLOG_*`) for general use, and a lock-free, allocation-free **hard-RT** front-end (`XLOG_RT_*`) for control loops with a hard deadline. Configurable via environment variables.
-- **Common types** — the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla).
+- **Common types** — the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation).
 
 > Driver/control interfaces are intentionally **not** here — they belong to their owning
-> component (xmMu's HAL). Keeping Σ free of upper-layer specifics is a load-bearing design rule.
+> component (xmDriver's HAL). Keeping xmBase free of upper-layer specifics is a load-bearing design rule.
 
 It builds either standalone or embedded as a module in another project, and ships its own CI +
 Debian packaging so downstream components can consume released artifacts rather than source.
 
-> Part of the xMotion family — see the [umbrella](https://github.com/rxdu/xmotion). Sibling
-> components include [xmNabla](https://github.com/rxdu/xmNabla) (motion algorithms) and
-> [xmMu](https://github.com/rxdu/xmMu) (host hardware drivers).
+> Part of the XMotion family — see the [umbrella](https://github.com/rxdu/xmotion). Sibling
+> components include [xmNavigation](https://github.com/rxdu/xmNavigation) (motion algorithms) and
+> [xmDriver](https://github.com/rxdu/xmDriver) (host hardware drivers).
+
+## Naming & compatibility
+
+This component was renamed **xmSigma → xmBase** (see the family naming ADR 0003). For backward compatibility, the old CMake names still resolve: `find_package(xmSigma)` and the `xmotion::xmSigma` target continue to work (aliased to `xmBase`) until dependents migrate to `find_package(xmBase)` + `xmotion::xmBase`. The header include prefix remains **`xmsigma/`** for now (renaming it would break every `#include "xmsigma/..."` in consumers); that migration is deferred.
 
 ## Layout
 
 Headers live under `include/xmsigma/`; the compiled logging sources under `src/`. Everything
-builds into one CMake target, `xmotion::xmSigma`.
+builds into one CMake target, `xmotion::xmBase` (legacy alias `xmotion::xmSigma`).
 
 | Path                              | Description                                                                 |
 |-----------------------------------|-----------------------------------------------------------------------------|

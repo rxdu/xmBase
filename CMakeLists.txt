@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.10.2)
-project(xmSigma VERSION 0.1.0)
+project(xmBase VERSION 0.1.0)
 
 message(STATUS "------------------------------------------------")
 if (PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
   set(BUILD_AS_MODULE OFF)
-  message(STATUS "Build xmSigma as a standalone project")
+  message(STATUS "Build xmBase as a standalone project")
 else ()
   set(BUILD_AS_MODULE ON)
-  message(STATUS "Build xmSigma as a module")
+  message(STATUS "Build xmBase as a module")
 endif ()
 message(STATUS "------------------------------------------------")
 
@@ -65,7 +65,7 @@ else ()
 endif ()
 
 if (XMOTION_DEV_MODE)
-  message(STATUS "xmSigma development mode enabled")
+  message(STATUS "xmBase development mode enabled")
 endif ()
 
 ## Chosse build type
@@ -93,10 +93,10 @@ if (((NOT BUILD_AS_MODULE) AND BUILD_TESTING) OR XMOTION_DEV_MODE)
   enable_testing()
   include(GoogleTest)
   set(BUILD_TESTS ON)
-  message(STATUS "xmSigma tests will be built")
+  message(STATUS "xmBase tests will be built")
 else ()
   set(BUILD_TESTS OFF)
-  message(STATUS "xmSigma tests will not be built")
+  message(STATUS "xmBase tests will not be built")
 endif ()
 
 ## Enable -fPIC for all targets
@@ -105,42 +105,46 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ## Dependent libraries
 add_subdirectory(third_party)
 
-## Build the xmSigma library from the include/ + src/ layout
+## Build the xmBase library from the include/ + src/ layout
 find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
 if (USE_SYS_SPDLOG)
   find_package(spdlog REQUIRED)
 endif ()
 
-add_library(xmSigma STATIC
+add_library(xmBase STATIC
     src/ctrl_logger.cpp
     src/default_logger.cpp
     src/logger_vendor_spdlog.cpp
     src/rt_logger.cpp
     src/rt_logger_mpsc.cpp)
-target_include_directories(xmSigma PUBLIC
+target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-target_link_libraries(xmSigma PUBLIC Eigen3::Eigen Threads::Threads)
+target_link_libraries(xmBase PUBLIC Eigen3::Eigen Threads::Threads)
 if (ENABLE_LOGGING)
-  target_compile_definitions(xmSigma PUBLIC ENABLE_LOGGING)
+  target_compile_definitions(xmBase PUBLIC ENABLE_LOGGING)
 endif ()
-# When spdlog is bundled (USE_SYS_SPDLOG=OFF) the xmSigma target links the
+# When spdlog is bundled (USE_SYS_SPDLOG=OFF) the xmBase target links the
 # in-tree spdlog target, so it must travel in the same export set — otherwise
 # install(EXPORT) errors that spdlog is referenced but not exported. With system
 # spdlog the link is an imported target and needs no exporting.
 if (USE_SYS_SPDLOG)
-  target_link_libraries(xmSigma PUBLIC spdlog::spdlog)
+  target_link_libraries(xmBase PUBLIC spdlog::spdlog)
 else ()
-  set(_xmsigma_install_targets xmSigma spdlog)
-  target_link_libraries(xmSigma PUBLIC spdlog)
+  set(_xmbase_install_targets xmBase spdlog)
+  target_link_libraries(xmBase PUBLIC spdlog)
 endif ()
-if (NOT DEFINED _xmsigma_install_targets)
-  set(_xmsigma_install_targets xmSigma)
+if (NOT DEFINED _xmbase_install_targets)
+  set(_xmbase_install_targets xmBase)
 endif ()
-add_library(xmotion::xmSigma ALIAS xmSigma)
+add_library(xmotion::xmBase ALIAS xmBase)
+# Backward-compat: the foundation was renamed xmSigma -> xmBase (ADR 0003).
+# Keep xmotion::xmSigma working for in-tree/add_subdirectory consumers (xmMu,
+# xmNabla, the umbrella) until they migrate to xmotion::xmBase.
+add_library(xmotion::xmSigma ALIAS xmBase)
 
-install(TARGETS ${_xmsigma_install_targets} EXPORT xmSigmaTargets
+install(TARGETS ${_xmbase_install_targets} EXPORT xmBaseTargets
     LIBRARY DESTINATION lib ARCHIVE DESTINATION lib RUNTIME DESTINATION bin
     INCLUDES DESTINATION include)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -175,24 +179,33 @@ endforeach ()
 # export target configuration
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
-    xmSigmaConfigVersion.cmake
+    xmBaseConfigVersion.cmake
     VERSION "${${PROJECT_NAME}_VERSION_MAJOR}.${${PROJECT_NAME}_VERSION_MINOR}.${${PROJECT_NAME}_VERSION_PATCH}"
     COMPATIBILITY SameMajorVersion)
 
-install(EXPORT xmSigmaTargets
-    FILE xmSigmaTargets.cmake
+install(EXPORT xmBaseTargets
+    FILE xmBaseTargets.cmake
     NAMESPACE xmotion::
-    DESTINATION lib/cmake/xmSigma)
+    DESTINATION lib/cmake/xmBase)
 
+configure_file(cmake/xmBaseConfig.cmake.in xmBaseConfig.cmake @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmBaseConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/xmBaseConfigVersion.cmake"
+    DESTINATION lib/cmake/xmBase)
+
+# Backward-compat package config: installed consumers that still call
+# find_package(xmSigma) forward to xmBase and get xmotion::xmSigma (ADR 0003).
 configure_file(cmake/xmSigmaConfig.cmake.in xmSigmaConfig.cmake @ONLY)
+configure_file("${CMAKE_CURRENT_BINARY_DIR}/xmBaseConfigVersion.cmake"
+    xmSigmaConfigVersion.cmake COPYONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmSigmaConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/xmSigmaConfigVersion.cmake"
     DESTINATION lib/cmake/xmSigma)
 
 # Packaging support
-set(CPACK_DEBIAN_PACKAGE_NAME "libxmotion-sigma")
+set(CPACK_DEBIAN_PACKAGE_NAME "libxmotion-base")
 set(CPACK_PACKAGE_VENDOR "Ruixiang Du")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "xmSigma - the xMotion foundation: driver/control interfaces, logging, and common types")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "xmBase - the XMotion foundation: driver/control interfaces, logging, and common types")
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
