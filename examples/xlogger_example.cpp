@@ -16,7 +16,7 @@
 #include <thread>
 #include <vector>
 
-#include "xmsigma/logging/xlogger.hpp"
+#include "xmbase/logging/xlogger.hpp"
 
 int main() {
   // fmt-style: format strings use {} placeholders, NOT printf %d/%f.
@@ -38,9 +38,9 @@ int main() {
   XLOG_WARN("this WARN still shows");
   XLOG_LEVEL(static_cast<int>(xmotion::LogLevel::kInfo));  // restore
 
-  // Compile-time floor: building with -DXMSIGMA_ACTIVE_LEVEL=2 strips TRACE/DEBUG
+  // Compile-time floor: building with -DXMBASE_ACTIVE_LEVEL=2 strips TRACE/DEBUG
   // sites entirely (zero cost), independent of the runtime level above.
-  XLOG_TRACE("trace sites compile out when XMSIGMA_ACTIVE_LEVEL > 0");
+  XLOG_TRACE("trace sites compile out when XMBASE_ACTIVE_LEVEL > 0");
 
   // The logger is thread-safe: many threads may log concurrently.
   std::vector<std::thread> workers;

@@ -26,7 +26,7 @@
 
 // Pulls in LogLevel and the logger-agnostic XLOG_RT_* macros (they only call
 // .Log(), so they work for an MpscRtLogger too).
-#include "xmsigma/logging/rt_logger.hpp"
+#include "xmbase/logging/rt_logger.hpp"
 
 namespace xmotion {
 

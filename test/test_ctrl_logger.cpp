@@ -18,14 +18,14 @@
 
 #include "gtest/gtest.h"
 
-#include "xmsigma/logging/ctrl_logger.hpp"
+#include "xmbase/logging/ctrl_logger.hpp"
 
 namespace fs = std::filesystem;
 using xmotion::CtrlLogger;
 
 namespace {
 std::string MakeTempDir() {
-  char tmpl[] = "/tmp/xmsigma_ctrl_XXXXXX";
+  char tmpl[] = "/tmp/xmbase_ctrl_XXXXXX";
   char* p = mkdtemp(tmpl);
   EXPECT_NE(p, nullptr);
   return p == nullptr ? std::string{} : std::string(p);

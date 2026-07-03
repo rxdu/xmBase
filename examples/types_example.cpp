@@ -10,9 +10,9 @@
 
 #include <thread>
 
-#include "xmsigma/logging/xlogger.hpp"
-#include "xmsigma/types/types.hpp"        // scalar/time/vector/geometry/stamped
-#include "xmsigma/types/quantities.hpp"   // opt-in strong quantities
+#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/types/types.hpp"        // scalar/time/vector/geometry/stamped
+#include "xmbase/types/quantities.hpp"   // opt-in strong quantities
 
 using namespace xmotion;
 

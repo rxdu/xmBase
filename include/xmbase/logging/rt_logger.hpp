@@ -23,11 +23,11 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/fmt.h"
 
-#include "xmsigma/logging/details/logger_interface.hpp"
+#include "xmbase/logging/details/logger_interface.hpp"
 
 // Compile-time level floor, shared with xlogger.hpp (idempotent definition).
-#ifndef XMSIGMA_ACTIVE_LEVEL
-#define XMSIGMA_ACTIVE_LEVEL 0
+#ifndef XMBASE_ACTIVE_LEVEL
+#define XMBASE_ACTIVE_LEVEL 0
 #endif
 
 namespace xmotion {
@@ -50,7 +50,7 @@ inline std::uint16_t FormatInto(char *dst, std::size_t cap,
     return static_cast<std::uint16_t>(res.size < cap ? res.size : cap);
 #if defined(__cpp_exceptions) && __cpp_exceptions
   } catch (...) {
-    static constexpr char kErr[] = "[xmsigma: log format error]";
+    static constexpr char kErr[] = "[xmbase: log format error]";
     std::size_t n = sizeof(kErr) - 1;
     if (n > cap) n = cap;
     std::memcpy(dst, kErr, n);
@@ -75,7 +75,7 @@ inline std::uint16_t FormatInto(char *dst, std::size_t cap,
 // Level: the runtime level is seeded from XLOG_LEVEL (so it behaves like the
 // XLOG_* soft-RT path) and can be changed with SetLevel(); records below it are
 // dropped on the hot path BEFORE any formatting, so a filtered call is nearly
-// free. The compile-time XMSIGMA_ACTIVE_LEVEL floor still strips sites entirely.
+// free. The compile-time XMBASE_ACTIVE_LEVEL floor still strips sites entirely.
 //
 // Timestamp note: records are stamped with system_clock (wall clock) for
 // human-readable sink output; it can step on NTP/settimeofday adjustments, so
@@ -166,37 +166,37 @@ class RtLogger {
     (rt).Log(lvl, __VA_ARGS__);     \
   } while (0)
 
-#if XMSIGMA_ACTIVE_LEVEL <= 0
+#if XMBASE_ACTIVE_LEVEL <= 0
 #define XLOG_RT_TRACE(rt, ...) \
   XLOG_RT_IMPL_(rt, xmotion::LogLevel::kTrace, __VA_ARGS__)
 #else
 #define XLOG_RT_TRACE(rt, ...) do {} while (0)
 #endif
-#if XMSIGMA_ACTIVE_LEVEL <= 1
+#if XMBASE_ACTIVE_LEVEL <= 1
 #define XLOG_RT_DEBUG(rt, ...) \
   XLOG_RT_IMPL_(rt, xmotion::LogLevel::kDebug, __VA_ARGS__)
 #else
 #define XLOG_RT_DEBUG(rt, ...) do {} while (0)
 #endif
-#if XMSIGMA_ACTIVE_LEVEL <= 2
+#if XMBASE_ACTIVE_LEVEL <= 2
 #define XLOG_RT_INFO(rt, ...) \
   XLOG_RT_IMPL_(rt, xmotion::LogLevel::kInfo, __VA_ARGS__)
 #else
 #define XLOG_RT_INFO(rt, ...) do {} while (0)
 #endif
-#if XMSIGMA_ACTIVE_LEVEL <= 3
+#if XMBASE_ACTIVE_LEVEL <= 3
 #define XLOG_RT_WARN(rt, ...) \
   XLOG_RT_IMPL_(rt, xmotion::LogLevel::kWarn, __VA_ARGS__)
 #else
 #define XLOG_RT_WARN(rt, ...) do {} while (0)
 #endif
-#if XMSIGMA_ACTIVE_LEVEL <= 4
+#if XMBASE_ACTIVE_LEVEL <= 4
 #define XLOG_RT_ERROR(rt, ...) \
   XLOG_RT_IMPL_(rt, xmotion::LogLevel::kError, __VA_ARGS__)
 #else
 #define XLOG_RT_ERROR(rt, ...) do {} while (0)
 #endif
-#if XMSIGMA_ACTIVE_LEVEL <= 5
+#if XMBASE_ACTIVE_LEVEL <= 5
 #define XLOG_RT_FATAL(rt, ...) \
   XLOG_RT_IMPL_(rt, xmotion::LogLevel::kFatal, __VA_ARGS__)
 #else
