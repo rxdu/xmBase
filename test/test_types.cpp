@@ -16,11 +16,11 @@
 #include "gtest/gtest.h"
 
 // Legacy facade include paths must keep working (this is what xmMu / xmNabla use).
-#include "xmsigma/types/base_types.hpp"
-#include "xmsigma/types/geometry_types.hpp"
+#include "xmbase/types/base_types.hpp"
+#include "xmbase/types/geometry_types.hpp"
 // New umbrella + opt-in strong types.
-#include "xmsigma/types/types.hpp"
-#include "xmsigma/types/quantities.hpp"
+#include "xmbase/types/types.hpp"
+#include "xmbase/types/quantities.hpp"
 
 namespace {
 

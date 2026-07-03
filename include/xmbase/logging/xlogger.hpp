@@ -13,18 +13,18 @@
 
 #include <sstream>
 
-#include "xmsigma/logging/details/default_logger.hpp"
+#include "xmbase/logging/details/default_logger.hpp"
 
 /*
  * level: 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN,
  *        4 - ERROR, 5 - FATAL, 6 - OFF
  *
- * XMSIGMA_ACTIVE_LEVEL is a COMPILE-TIME floor: any site below it is compiled
+ * XMBASE_ACTIVE_LEVEL is a COMPILE-TIME floor: any site below it is compiled
  * out entirely (zero cost), independent of the runtime level. Define it (e.g.
- * -DXMSIGMA_ACTIVE_LEVEL=2) to strip trace/debug from a release/RT build.
+ * -DXMBASE_ACTIVE_LEVEL=2) to strip trace/debug from a release/RT build.
  */
-#ifndef XMSIGMA_ACTIVE_LEVEL
-#define XMSIGMA_ACTIVE_LEVEL 0
+#ifndef XMBASE_ACTIVE_LEVEL
+#define XMBASE_ACTIVE_LEVEL 0
 #endif
 
 #ifdef ENABLE_LOGGING
@@ -55,7 +55,7 @@
 // expression form: usable as `auto l = XLOG_GET_LEVEL();`
 #define XLOG_GET_LEVEL() (xmotion::DefaultLogger::GetInstance().GetLoggerLevel())
 
-#if XMSIGMA_ACTIVE_LEVEL <= 0
+#if XMBASE_ACTIVE_LEVEL <= 0
 #define XLOG_TRACE(...) XLOG_IMPL_(xmotion::LogLevel::kTrace, __VA_ARGS__)
 #define XLOG_TRACE_STREAM(...) \
   XLOG_STREAM_IMPL_(xmotion::LogLevel::kTrace, __VA_ARGS__)
@@ -64,7 +64,7 @@
 #define XLOG_TRACE_STREAM(...) do {} while (0)
 #endif
 
-#if XMSIGMA_ACTIVE_LEVEL <= 1
+#if XMBASE_ACTIVE_LEVEL <= 1
 #define XLOG_DEBUG(...) XLOG_IMPL_(xmotion::LogLevel::kDebug, __VA_ARGS__)
 #define XLOG_DEBUG_STREAM(...) \
   XLOG_STREAM_IMPL_(xmotion::LogLevel::kDebug, __VA_ARGS__)
@@ -73,7 +73,7 @@
 #define XLOG_DEBUG_STREAM(...) do {} while (0)
 #endif
 
-#if XMSIGMA_ACTIVE_LEVEL <= 2
+#if XMBASE_ACTIVE_LEVEL <= 2
 #define XLOG_INFO(...) XLOG_IMPL_(xmotion::LogLevel::kInfo, __VA_ARGS__)
 #define XLOG_INFO_STREAM(...) \
   XLOG_STREAM_IMPL_(xmotion::LogLevel::kInfo, __VA_ARGS__)
@@ -82,7 +82,7 @@
 #define XLOG_INFO_STREAM(...) do {} while (0)
 #endif
 
-#if XMSIGMA_ACTIVE_LEVEL <= 3
+#if XMBASE_ACTIVE_LEVEL <= 3
 #define XLOG_WARN(...) XLOG_IMPL_(xmotion::LogLevel::kWarn, __VA_ARGS__)
 #define XLOG_WARN_STREAM(...) \
   XLOG_STREAM_IMPL_(xmotion::LogLevel::kWarn, __VA_ARGS__)
@@ -91,7 +91,7 @@
 #define XLOG_WARN_STREAM(...) do {} while (0)
 #endif
 
-#if XMSIGMA_ACTIVE_LEVEL <= 4
+#if XMBASE_ACTIVE_LEVEL <= 4
 #define XLOG_ERROR(...) XLOG_IMPL_(xmotion::LogLevel::kError, __VA_ARGS__)
 #define XLOG_ERROR_STREAM(...) \
   XLOG_STREAM_IMPL_(xmotion::LogLevel::kError, __VA_ARGS__)
@@ -100,7 +100,7 @@
 #define XLOG_ERROR_STREAM(...) do {} while (0)
 #endif
 
-#if XMSIGMA_ACTIVE_LEVEL <= 5
+#if XMBASE_ACTIVE_LEVEL <= 5
 #define XLOG_FATAL(...) XLOG_IMPL_(xmotion::LogLevel::kFatal, __VA_ARGS__)
 #define XLOG_FATAL_STREAM(...) \
   XLOG_STREAM_IMPL_(xmotion::LogLevel::kFatal, __VA_ARGS__)

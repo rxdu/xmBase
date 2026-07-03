@@ -1,38 +1,38 @@
 <h1 align="center">
-  <img src="docs/xmsigma.svg" width="96" alt="xmSigma"><br>
-  xmSigma&nbsp;·&nbsp;Σ
+  <img src="docs/xmbase.svg" width="96" alt="xmBase"><br>
+  xmBase&nbsp;·&nbsp;Σ
 </h1>
 
-<p align="center"><b>Foundation layer for the xMotion family</b> — logging and common types.<br>
+<p align="center"><b>Foundation layer for the XMotion family</b> — logging and common types.<br>
 The substrate every other component plugs into.</p>
 
 ---
 
-`xmSigma` is the Σ foundation of the **xMotion** product family. It provides the low-level
+`xmBase` is the foundation of the **XMotion** product family. It provides the low-level
 utilities shared across components:
 
 - **Logging** — a dual-mode logging system on an spdlog backend: an async **soft-RT** front-end (`XLOG_*`) for general use, and a lock-free, allocation-free **hard-RT** front-end (`XLOG_RT_*`) for control loops with a hard deadline. Configurable via environment variables.
-- **Common types** — the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla).
+- **Common types** — the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation).
 
 > Driver/control interfaces are intentionally **not** here — they belong to their owning
-> component (xmMu's HAL). Keeping Σ free of upper-layer specifics is a load-bearing design rule.
+> component (xmDriver's HAL). Keeping xmBase free of upper-layer specifics is a load-bearing design rule.
 
 It builds either standalone or embedded as a module in another project, and ships its own CI +
 Debian packaging so downstream components can consume released artifacts rather than source.
 
-> Part of the xMotion family — see the [umbrella](https://github.com/rxdu/xmotion). Sibling
-> components include [xmNabla](https://github.com/rxdu/xmNabla) (motion algorithms) and
-> [xmMu](https://github.com/rxdu/xmMu) (host hardware drivers).
+> Part of the XMotion family — see the [umbrella](https://github.com/rxdu/xmotion). Sibling
+> components include [xmNavigation](https://github.com/rxdu/xmNavigation) (motion algorithms) and
+> [xmDriver](https://github.com/rxdu/xmDriver) (host hardware drivers).
 
 ## Layout
 
-Headers live under `include/xmsigma/`; the compiled logging sources under `src/`. Everything
-builds into one CMake target, `xmotion::xmSigma`.
+Headers live under `include/xmbase/`; the compiled logging sources under `src/`. Everything
+builds into one CMake target, `xmotion::xmBase`.
 
 | Path                              | Description                                                                 |
 |-----------------------------------|-----------------------------------------------------------------------------|
-| `include/xmsigma/logging/`        | logging front-ends: `xlogger` (`XLOG_*`, soft-RT), `rt_logger` / `rt_logger_mpsc` (`XLOG_RT_*`, hard-RT), plus `csv_logger`, `ctrl_logger`, `event_logger` |
-| `include/xmsigma/types/`          | header-only common types: `base_types.hpp`, `geometry_types.hpp`            |
+| `include/xmbase/logging/`        | logging front-ends: `xlogger` (`XLOG_*`, soft-RT), `rt_logger` / `rt_logger_mpsc` (`XLOG_RT_*`, hard-RT), plus `csv_logger`, `ctrl_logger`, `event_logger` |
+| `include/xmbase/types/`          | header-only common types: `base_types.hpp`, `geometry_types.hpp`            |
 | `src/`                            | spdlog-backed logging implementation (the compiled part)                    |
 
 ## Build
@@ -51,10 +51,10 @@ Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (def
 Two front-ends, picked by deadline (format strings use fmt `{}` syntax, not printf):
 
 ```cpp
-#include "xmsigma/logging/xlogger.hpp"     // soft-RT (async)
+#include "xmbase/logging/xlogger.hpp"     // soft-RT (async)
 XLOG_INFO("motor speed: {} RPM", speed);
 
-#include "xmsigma/logging/rt_logger.hpp"   // hard-RT (lock-free, drop-on-full)
+#include "xmbase/logging/rt_logger.hpp"   // hard-RT (lock-free, drop-on-full)
 xmotion::RtLogger rt("ctrl_loop");
 XLOG_RT_INFO(rt, "cycle {} tau={:.3f}", cycle, tau);   // wait-free, no heap/syscall
 rt.Flush();                                            // NON-RT: drain at shutdown

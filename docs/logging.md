@@ -14,10 +14,10 @@ Two front-ends, picked by deadline:
 
 ## Hard-RT logging (`XLOG_RT_*`) notes
 
-* **Level.** An `RtLogger`/`MpscRtLogger` seeds its level from `XLOG_LEVEL` (same as `XLOG_*`) and can be changed at runtime with `SetLevel()`. Below-threshold records are dropped on the hot path *before* the clock read and formatting, so a filtered call is nearly free. The compile-time `XMSIGMA_ACTIVE_LEVEL` floor still removes call sites entirely.
+* **Level.** An `RtLogger`/`MpscRtLogger` seeds its level from `XLOG_LEVEL` (same as `XLOG_*`) and can be changed at runtime with `SetLevel()`. Below-threshold records are dropped on the hot path *before* the clock read and formatting, so a filtered call is nearly free. The compile-time `XMBASE_ACTIVE_LEVEL` floor still removes call sites entirely.
 * **Drain thread placement.** Each logger owns one background drain thread that performs the sink I/O. On a tuned target, pin it to a housekeeping CPU and run it *below* the producer's real-time priority so it never preempts the control loop. If many producers need logging, share one logger (`MpscRtLogger`) across them rather than spawning a drain thread per loop.
 * **Timestamps.** Records are stamped with `system_clock` (wall clock) for readable output; it can step backward on NTP/`settimeofday` adjustments. Do not derive loop timing from log timestamps — use `steady_clock`.
-* **Format safety.** A malformed format string or argument mismatch is caught on the hot path and rendered as a bounded `[xmsigma: log format error]` diagnostic instead of throwing onto the RT thread. Keep hot-path arguments trivially formattable (arithmetic types, string views); a user-defined formatter that allocates would break the allocation-free guarantee.
+* **Format safety.** A malformed format string or argument mismatch is caught on the hot path and rendered as a bounded `[xmbase: log format error]` diagnostic instead of throwing onto the RT thread. Keep hot-path arguments trivially formattable (arithmetic types, string views); a user-defined formatter that allocates would break the allocation-free guarantee.
 
 ## Known limitations
 

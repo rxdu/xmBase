@@ -1,4 +1,4 @@
-# xmSigma Logging — Design
+# xmBase Logging — Design
 
 Status: accepted (2026-07). Supersedes the original synchronous spdlog wrapper.
 
@@ -79,8 +79,8 @@ the shared spdlog sinks for actual I/O.
 XLOG_INFO("v = {}", v);                 // fmt {}-style (NOT printf %d)
 XLOG_DEBUG_STREAM("pose " << x << y);   // level-gated before formatting
 
-// Compile-time floor: levels below XMSIGMA_ACTIVE_LEVEL vanish at compile time.
-//   -DXMSIGMA_ACTIVE_LEVEL=2   // INFO; trace/debug compiled out
+// Compile-time floor: levels below XMBASE_ACTIVE_LEVEL vanish at compile time.
+//   -DXMBASE_ACTIVE_LEVEL=2   // INFO; trace/debug compiled out
 
 // Hard-RT (opt-in) — explicit logger owned by the RT component.
 xmotion::RtLogger rt("ctrl_loop");      // owns ring + drain thread
@@ -93,7 +93,7 @@ for (;;) {                              // 1 kHz control loop
 ## 4. Compile-out
 
 `ENABLE_LOGGING=OFF` compiles all `XLOG_*` / `XLOG_RT_*` to no-ops.
-`XMSIGMA_ACTIVE_LEVEL=<n>` additionally drops, at compile time, every site below
+`XMBASE_ACTIVE_LEVEL=<n>` additionally drops, at compile time, every site below
 level `n` — so trace/debug cost exactly zero in a release RT build regardless of
 the runtime level.
 
@@ -117,7 +117,7 @@ queued.
   overflowing), drop-on-full, and oversized-message truncation.
 - The suite runs clean under **ASan + UBSan**. Under **TSan**, `RtLogger` (the
   lock-free ring) is race-free; the async `DefaultLogger` path raises a
-  "double lock" warning that reproduces with *bare* spdlog 1.9.2 (no xmSigma
+  "double lock" warning that reproduces with *bare* spdlog 1.9.2 (no xmBase
   code) and does not deadlock — it is an upstream spdlog artifact, not ours.
 
 ## 7. Multi-producer hard-RT (`MpscRtLogger`)
@@ -125,7 +125,7 @@ queued.
 `RtLogger` is SPSC (wait-free) — one producer thread per logger, the common
 control-loop shape. When several threads must log to one hard-RT logger (e.g.
 multiple control loops or sensor callbacks), use **`MpscRtLogger`**
-(`xmsigma/logging/rt_logger_mpsc.hpp`). Same `Log()` API and `XLOG_RT_*` macros
+(`xmbase/logging/rt_logger_mpsc.hpp`). Same `Log()` API and `XLOG_RT_*` macros
 (they only call `.Log()`), so the only change is the type.
 
 It uses a bounded **Vyukov ring**: each cell carries a sequence number; a

@@ -12,8 +12,8 @@
 #include <chrono>
 #include <thread>
 
-#include "xmsigma/logging/rt_logger.hpp"
-#include "xmsigma/logging/xlogger.hpp"
+#include "xmbase/logging/rt_logger.hpp"
+#include "xmbase/logging/xlogger.hpp"
 
 int main() {
   // Soft-RT: fine for non-deadline code (startup banner, summaries).

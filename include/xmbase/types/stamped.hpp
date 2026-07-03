@@ -12,7 +12,7 @@
 
 #include <utility>
 
-#include "xmsigma/types/time.hpp"
+#include "xmbase/types/time.hpp"
 
 namespace xmotion {
 

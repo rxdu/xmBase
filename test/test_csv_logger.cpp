@@ -16,7 +16,7 @@
 #include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
 
-#include "xmsigma/logging/csv_logger.hpp"
+#include "xmbase/logging/csv_logger.hpp"
 
 namespace fs = std::filesystem;
 
@@ -24,7 +24,7 @@ namespace {
 
 // Create a guaranteed-unique, empty temporary directory.
 std::string MakeUniqueTempDir() {
-  char tmpl[] = "/tmp/xmsigma_csv_XXXXXX";
+  char tmpl[] = "/tmp/xmbase_csv_XXXXXX";
   char* path = mkdtemp(tmpl);
   EXPECT_NE(path, nullptr) << "mkdtemp failed to create a temp directory";
   return path == nullptr ? std::string{} : std::string(path);
