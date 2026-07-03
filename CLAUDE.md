@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xmSigma is the foundation library of the xMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
+xmBase is the foundation library of the XMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
 - **Logging utilities**: spdlog-based logging system with environment variable configuration
-- **Common types**: the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmMu) and the motion layer (xmNabla)
+- **Common types**: the shared geometry/primitive type vocabulary (`xmsigma/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation)
 
-It is exposed as a **single** CMake target, `xmotion::xmSigma`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmMu, xmNabla), not here.
+It is exposed as a **single** CMake target, `xmotion::xmBase`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmDriver, xmNavigation), not here.
 
 The library is designed to be used either as a standalone project or as a module embedded in other projects.
 
@@ -66,7 +66,7 @@ sudo apt-get install libeigen3-dev libspdlog-dev
 
 ### Module Structure
 
-Everything compiles into one target, `xmotion::xmSigma`. Headers live under
+Everything compiles into one target, `xmotion::xmBase`. Headers live under
 `include/xmsigma/`; the compiled logging sources under `src/`.
 
 1. **logging/** (`include/xmsigma/logging/`): logging front-ends; the spdlog-backed
@@ -79,15 +79,15 @@ Everything compiles into one target, `xmotion::xmSigma`. Headers live under
    - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
    - `types.hpp`: umbrella that pulls in all of the above.
    - `quantities.hpp`: **opt-in** strong-typed quantities (tagged `Vec3`: `Force`, `Torque`, `LinearVelocity`, …) — distinct types so the compiler catches quantity mix-ups; reach Eigen via `.vec()`. Not included by the umbrella.
-   - `base_types.hpp` / `geometry_types.hpp`: compatibility facades re-exporting the granular headers (legacy include paths used by xmMu/xmNabla).
+   - `base_types.hpp` / `geometry_types.hpp`: compatibility facades re-exporting the granular headers (legacy include paths used by xmDriver/xmNavigation).
    - Conventions: SI units, radians, intrinsic Z-Y-X Euler, Hamilton quaternions; all composite types default-initialize to identity/zero.
    - These are the types shared by *both* the driver and motion layers; layer-specific types (e.g. trajectories) live in those layers.
 
 ### Key Design Patterns
 
 **Single-target foundation:**
-- `xmSigma` is one STATIC library aggregating logging + the common types; consumers `find_package(xmSigma)` and link `xmotion::xmSigma`.
-- There are intentionally no driver/control interfaces here — they belong to xmMu's HAL (`xmmu/hal/`). Keeping Σ free of upper-layer specifics is a load-bearing design rule, not an accident.
+- `xmBase` is one STATIC library aggregating logging + the common types; consumers `find_package(xmBase)` and link `xmotion::xmBase`.
+- There are intentionally no driver/control interfaces here — they belong to xmDriver's HAL (`xmmu/hal/`). Keeping xmBase free of upper-layer specifics is a load-bearing design rule, not an accident.
 
 **Logging Module (dual-mode):**
 - Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
@@ -160,9 +160,9 @@ rt.Flush();                                 // NON-RT: drain before exit/shutdow
 
 ### What belongs here (and what doesn't)
 
-Add to xmSigma only things every component could share: logging facilities, or a type that is genuinely spoken by more than one layer. Concretely:
+Add to xmBase only things every component could share: logging facilities, or a type that is genuinely spoken by more than one layer. Concretely:
 - A new **common type** goes in `include/xmsigma/types/` (header-only; no CMakeLists change needed).
-- A new **driver/control interface** does **not** go here — it belongs to its owning component (driver interfaces → xmMu's `xmmu/hal/`; control/motion types → xmNabla). If a would-be "common" type is only used by one upper layer, put it in that layer instead.
+- A new **driver/control interface** does **not** go here — it belongs to its owning component (driver interfaces → xmDriver's `xmmu/hal/`; control/motion types → xmNavigation). If a would-be "common" type is only used by one upper layer, put it in that layer instead.
 
 ### Testing
 
@@ -193,9 +193,10 @@ cpack
 ```
 
 Package details:
-- Package name: libxmotion-sigma
+- Package name: libxmotion-base
 - Default install prefix: /opt/xmotion
-- Exports a single CMake target, `xmotion::xmSigma` (via `find_package(xmSigma)`)
+- Exports a single CMake target, `xmotion::xmBase` (via `find_package(xmBase)`)
+- Backward compat (renamed xmSigma → xmBase, ADR 0003): `find_package(xmSigma)` and the `xmotion::xmSigma` target still work (compat config + alias); the header include prefix remains `xmsigma/` for now
 - Includes CMake config files for find_package() support
 
 ## ROS Integration

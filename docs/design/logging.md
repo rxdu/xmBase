@@ -1,4 +1,4 @@
-# xmSigma Logging — Design
+# xmBase Logging — Design
 
 Status: accepted (2026-07). Supersedes the original synchronous spdlog wrapper.
 
@@ -117,7 +117,7 @@ queued.
   overflowing), drop-on-full, and oversized-message truncation.
 - The suite runs clean under **ASan + UBSan**. Under **TSan**, `RtLogger` (the
   lock-free ring) is race-free; the async `DefaultLogger` path raises a
-  "double lock" warning that reproduces with *bare* spdlog 1.9.2 (no xmSigma
+  "double lock" warning that reproduces with *bare* spdlog 1.9.2 (no xmBase
   code) and does not deadlock — it is an upstream spdlog artifact, not ours.
 
 ## 7. Multi-producer hard-RT (`MpscRtLogger`)
