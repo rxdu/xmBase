@@ -15,7 +15,7 @@
 
 #include "gtest/gtest.h"
 
-// Legacy facade include paths must keep working (this is what xmMu / xmNabla use).
+// Legacy facade include paths must keep working (this is what xmDriver / xmNavigation use).
 #include "xmbase/types/base_types.hpp"
 #include "xmbase/types/geometry_types.hpp"
 // New umbrella + opt-in strong types.
@@ -56,14 +56,14 @@ TEST(TypesTest, TwistAndWrenchDefaultToZero) {
 }
 
 TEST(TypesTest, OdometryDefaultIsWellFormed) {
-  xmotion::Odometry o;  // mirrors `Odometry odom_;` in xmNabla
+  xmotion::Odometry o;  // mirrors `Odometry odom_;` in xmNavigation
   EXPECT_TRUE(o.pose.position.isZero());
   EXPECT_DOUBLE_EQ(o.pose.orientation.w(), 1.0);
   EXPECT_TRUE(o.twist.linear.isZero());
   EXPECT_TRUE(o.child_frame_id.empty());
 }
 
-// Existing aggregate-init usage in xmNabla must still compile/behave:
+// Existing aggregate-init usage in xmNavigation must still compile/behave:
 //   odom_.pose  = {{0,0,0}, {1,0,0,0}};
 //   odom_.twist = {{0,0,0}, {0,0,0}};
 TEST(TypesTest, AggregateInitStillWorks) {
