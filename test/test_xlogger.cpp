@@ -18,8 +18,8 @@
 #include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
 
-#include "xmsigma/logging/xlogger.hpp"
-#include "xmsigma/logging/details/default_logger.hpp"
+#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/logging/details/default_logger.hpp"
 
 namespace fs = std::filesystem;
 
@@ -74,7 +74,7 @@ TEST(XLoggerTest, WritesKnownMessageToLogFile) {
   // Redirect the log folder to a unique temp dir and enable file logging.
   // These env vars are consumed during the one-time DefaultLogger init, so
   // they must be set before the first XLOG_* call in this process.
-  char tmpl[] = "/tmp/xmsigma_xlog_XXXXXX";
+  char tmpl[] = "/tmp/xmbase_xlog_XXXXXX";
   char* dir = mkdtemp(tmpl);
   ASSERT_NE(dir, nullptr);
   ASSERT_EQ(setenv("XLOG_FOLDER", dir, 1), 0);

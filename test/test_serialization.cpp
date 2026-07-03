@@ -12,8 +12,8 @@
 
 #include "gtest/gtest.h"
 
-#include "xmsigma/serialization/byte_order.hpp"
-#include "xmsigma/serialization/checksum.hpp"
+#include "xmbase/serialization/byte_order.hpp"
+#include "xmbase/serialization/checksum.hpp"
 
 using namespace xmotion::serialization;
 

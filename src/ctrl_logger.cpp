@@ -7,7 +7,7 @@
  * Copyright (c) 2018 Ruixiang Du (rdu)
  */
 
-#include "xmsigma/logging/ctrl_logger.hpp"
+#include "xmbase/logging/ctrl_logger.hpp"
 
 #include <iostream>
 #include <sstream>

@@ -30,7 +30,7 @@
 
 #include "gtest/gtest.h"
 
-#include "xmsigma/logging/rt_logger.hpp"
+#include "xmbase/logging/rt_logger.hpp"
 
 // --- per-thread allocation counter, for the no-alloc hot-path test ----------
 // thread_local PODs are constant-initialized (no dynamic init -> no allocation
@@ -40,11 +40,11 @@
 // causes alloc/dealloc mismatches, so the override (and the test) are disabled
 // under sanitizers — the no-alloc property is checked in the plain build.
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
-#define XMSIGMA_SANITIZER_BUILD 1
+#define XMBASE_SANITIZER_BUILD 1
 #endif
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
-#define XMSIGMA_SANITIZER_BUILD 1
+#define XMBASE_SANITIZER_BUILD 1
 #endif
 #endif
 
@@ -53,7 +53,7 @@ thread_local bool t_track_alloc = false;
 thread_local std::size_t t_alloc_count = 0;
 }  // namespace
 
-#ifndef XMSIGMA_SANITIZER_BUILD
+#ifndef XMBASE_SANITIZER_BUILD
 void* operator new(std::size_t n) {
   if (t_track_alloc) ++t_alloc_count;
   void* p = std::malloc(n ? n : 1);
@@ -73,7 +73,7 @@ using xmotion::RtLogger;
 namespace {
 
 std::string MakeTempLogDir() {
-  char tmpl[] = "/tmp/xmsigma_rt_XXXXXX";
+  char tmpl[] = "/tmp/xmbase_rt_XXXXXX";
   char* dir = mkdtemp(tmpl);
   EXPECT_NE(dir, nullptr);
   setenv("XLOG_FOLDER", dir, 1);
@@ -210,7 +210,7 @@ TEST(RtLoggerTest, DropsWhenRingFullWithBalancedAccounting) {
 // The hot path must not heap-allocate (the defining hard-RT property). Count
 // allocations on the producer thread across a batch of Log() calls.
 TEST(RtLoggerTest, HotPathDoesNotAllocate) {
-#ifdef XMSIGMA_SANITIZER_BUILD
+#ifdef XMBASE_SANITIZER_BUILD
   GTEST_SKIP() << "allocation counting is disabled under sanitizers";
 #else
   const std::string dir = MakeTempLogDir();
@@ -233,7 +233,7 @@ TEST(RtLoggerTest, HotPathDoesNotAllocate) {
       << "RtLogger::Log must not allocate on the hot path";
   rt.Flush();
   fs::remove_all(dir);
-#endif  // XMSIGMA_SANITIZER_BUILD
+#endif  // XMBASE_SANITIZER_BUILD
 }
 
 // A message longer than the fixed slot is truncated to kMaxMsgLen, never

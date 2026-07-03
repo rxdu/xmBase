@@ -17,7 +17,7 @@
 #include <atomic>
 #include <sstream>
 
-#include "xmsigma/logging/details/specialized_logger.hpp"
+#include "xmbase/logging/details/specialized_logger.hpp"
 
 namespace xmotion {
 class CtrlLogger : public SpecializedLogger {

@@ -23,7 +23,7 @@
 #include <unistd.h>
 #endif
 
-#include "xmsigma/logging/details/logger_interface.hpp"
+#include "xmbase/logging/details/logger_interface.hpp"
 
 namespace xmotion {
 

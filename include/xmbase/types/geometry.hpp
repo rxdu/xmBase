@@ -27,7 +27,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
-#include "xmsigma/types/time.hpp"
+#include "xmbase/types/time.hpp"
 
 namespace xmotion {
 
