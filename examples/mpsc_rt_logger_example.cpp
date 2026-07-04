@@ -18,10 +18,10 @@
 #include <vector>
 
 #include "xmbase/logging/rt_logger_mpsc.hpp"
-#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/telemetry/telemetry.hpp"
 
 int main() {
-  XLOG_INFO("mpsc_rt_logger_example: 3 control loops sharing one RT logger");
+  XM_INFO("mpsc_rt_logger_example: 3 control loops sharing one RT logger");
 
   // One logger, shared by every producer thread. Console sink; producers never
   // touch the sink — the drain thread does.
@@ -46,7 +46,7 @@ int main() {
   for (auto& t : loops) t.join();
 
   rt.Flush();  // NON-RT: drain the ring before reporting/exit
-  XLOG_INFO("mpsc_rt_logger_example: done, {} records dropped (ring-full)",
+  XM_INFO("mpsc_rt_logger_example: done, {} records dropped (ring-full)",
             rt.dropped());
   return 0;
 }

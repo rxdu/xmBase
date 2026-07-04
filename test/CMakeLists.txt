@@ -2,21 +2,9 @@
 #
 # Each test links the xmBase library plus gtest_main and is registered with
 # ctest via gtest_discover_tests so `ctest` actually runs them.
-add_executable(test_csv_logger test_csv_logger.cpp)
-target_link_libraries(test_csv_logger xmBase gtest gtest_main)
-gtest_discover_tests(test_csv_logger)
-
-add_executable(test_xlogger test_xlogger.cpp)
-target_link_libraries(test_xlogger xmBase gtest gtest_main)
-gtest_discover_tests(test_xlogger)
-
-add_executable(test_event_logger test_event_logger.cpp)
-target_link_libraries(test_event_logger xmBase gtest gtest_main)
-gtest_discover_tests(test_event_logger)
-
-add_executable(test_ctrl_logger test_ctrl_logger.cpp)
-target_link_libraries(test_ctrl_logger xmBase gtest gtest_main)
-gtest_discover_tests(test_ctrl_logger)
+add_executable(test_logging test_logging.cpp)
+target_link_libraries(test_logging xmBase gtest gtest_main)
+gtest_discover_tests(test_logging)
 
 add_executable(test_rt_logger test_rt_logger.cpp)
 target_link_libraries(test_rt_logger xmBase gtest gtest_main)
@@ -37,3 +25,7 @@ gtest_discover_tests(test_ring_buffer)
 add_executable(test_serialization test_serialization.cpp)
 target_link_libraries(test_serialization xmBase gtest gtest_main)
 gtest_discover_tests(test_serialization)
+
+add_executable(test_telemetry_api test_telemetry_api.cpp)
+target_link_libraries(test_telemetry_api xmBase gtest gtest_main)
+gtest_discover_tests(test_telemetry_api)

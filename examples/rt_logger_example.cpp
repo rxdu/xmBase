@@ -13,11 +13,11 @@
 #include <thread>
 
 #include "xmbase/logging/rt_logger.hpp"
-#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/telemetry/telemetry.hpp"
 
 int main() {
   // Soft-RT: fine for non-deadline code (startup banner, summaries).
-  XLOG_INFO("rt_logger_example: starting a ~10 kHz control-loop demo");
+  XM_INFO("rt_logger_example: starting a ~10 kHz control-loop demo");
 
   // Hard-RT: one logger owned by the loop. Console sink; the producer never
   // touches the sink — a drain thread does the I/O.
@@ -34,7 +34,7 @@ int main() {
   }
 
   rt.Flush();  // NON-RT: drain the ring before we report/exit
-  XLOG_INFO("rt_logger_example: done, {} records dropped (ring-full)",
+  XM_INFO("rt_logger_example: done, {} records dropped (ring-full)",
             rt.dropped());
   return 0;
 }
