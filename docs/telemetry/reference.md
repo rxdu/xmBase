@@ -52,7 +52,7 @@ Value-type handles over slots fixed at registration. **Register at init, use on 
 |---|---|---|
 | `Counter` ← `GetCounter(name)` | `Add(double v = 1.0)` | Monotonic accumulation (CAS add). |
 | `Gauge` ← `GetGauge(name)` | `Set(double)` | Last-value (relaxed store). |
-| `Histogram` ← `GetHistogram(name)` | `Record(double)` | count/sum/min/max aggregates (buckets arrive with the SDK, ABI bump). |
+| `Histogram` ← `GetHistogram(name)` | `Record(double)` | count/sum/min/max **+ 24 exponential (power-of-two) buckets** (ABI v3) — percentile-capable; `Record` adds one `ilogb` + one relaxed increment. |
 | `SignalChannel<T>` ← `GetChannel<T>(name)` | `Publish(const T&, Timestamp = Now())` | High-rate typed samples for the recording plane. `T` must be trivially copyable and `sizeof(T) <= kMaxSignalPayload` (192) — decompose larger data per-sample (a trajectory publishes points, not a blob). Unbound: no-op. |
 
 All metric ops: RT yes, `noexcept`, no binding lookup per call. `Get*` may allocate (registration) — never call in a loop.
@@ -80,7 +80,7 @@ Users never touch these; they define what a backend must provide.
 
 | Symbol | Description |
 |---|---|
-| `kBindingAbiVersion` (currently 2) | Layout gate; `InstallBinding` rejects mismatches. |
+| `kBindingAbiVersion` (currently 3: histogram buckets; 2: span links) | Layout gate; `InstallBinding` rejects mismatches. |
 | `struct Binding` | Function-pointer table: registration entries (`get_counter/gauge/histogram/signal`, `intern_source` — may allocate) and hot-path entries (`should_log`, `set_level/get_level`, `emit_event`, `emit_event_dyn`, `emit_span` (with `links, link_count`), `emit_signal`, `report_health` — must be `noexcept`, allocation-free, wait-free). `set_resource` non-RT. Pointer args (`name`, `fmt`, `links`) are valid only for the call unless documented literal. |
 | `bool InstallBinding(const Binding*) noexcept` | Install/replace; `nullptr` unbinds. **Explicit calls are authoritative**: they disable auto-adoption of the interim logging binding for the rest of the process. Contract for implementers: keep the outgoing table callable until the swap is visible; never free metric slots. |
 | `const Binding* ActiveBinding() noexcept` | The active binding (may lazily adopt the interim logging binding on first use — see design.md §3). |
