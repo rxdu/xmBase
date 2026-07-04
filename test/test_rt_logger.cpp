@@ -30,7 +30,7 @@
 
 #include "gtest/gtest.h"
 
-#include "xmbase/logging/rt_logger.hpp"
+#include "logging/rt_logger.hpp"
 
 // --- per-thread allocation counter, for the no-alloc hot-path test ----------
 // thread_local PODs are constant-initialized (no dynamic init -> no allocation

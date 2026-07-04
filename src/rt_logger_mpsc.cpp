@@ -4,14 +4,14 @@
  * Copyright (c) 2026 Ruixiang Du (rdu)
  */
 
-#include "xmbase/logging/rt_logger_mpsc.hpp"
+#include "logging/rt_logger_mpsc.hpp"
 
 #include <vector>
 
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-#include "xmbase/logging/details/logging_utils.hpp"
+#include "logging/logging_utils.hpp"
 
 namespace xmotion {
 namespace {

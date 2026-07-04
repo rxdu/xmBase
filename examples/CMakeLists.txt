@@ -7,11 +7,7 @@
 add_executable(xm_logging_example xm_logging_example.cpp)
 target_link_libraries(xm_logging_example xmBase)
 
-add_executable(rt_logger_example rt_logger_example.cpp)
-target_link_libraries(rt_logger_example xmBase)
 
-add_executable(mpsc_rt_logger_example mpsc_rt_logger_example.cpp)
-target_link_libraries(mpsc_rt_logger_example xmBase)
 
 add_executable(types_example types_example.cpp)
 target_link_libraries(types_example xmBase)

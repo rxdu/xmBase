@@ -122,6 +122,9 @@ add_library(xmBase STATIC
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+# Private implementation headers (src/logging/): the spdlog interim backend and
+# the RT ring (SDK donor) — NOT installed; they leave xmBase at P0b/P1.
+target_include_directories(xmBase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(xmBase PUBLIC Eigen3::Eigen Threads::Threads)
 if (ENABLE_LOGGING)
   target_compile_definitions(xmBase PUBLIC ENABLE_LOGGING)

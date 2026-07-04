@@ -20,7 +20,7 @@
 #include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
 
-#include "xmbase/logging/details/default_logger.hpp"
+#include "logging/default_logger.hpp"
 #include "xmbase/telemetry/telemetry.hpp"
 
 namespace fs = std::filesystem;

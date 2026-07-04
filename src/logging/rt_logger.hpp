@@ -23,7 +23,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/fmt.h"
 
-#include "xmbase/logging/details/logger_interface.hpp"
+#include "logging/logger_interface.hpp"
 
 // Compile-time level floor for the RT macros (idempotent definition).
 #ifndef XMBASE_ACTIVE_LEVEL

@@ -35,7 +35,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "xmbase/logging/details/default_logger.hpp"
+#include "logging/default_logger.hpp"
 #if defined(SPDLOG_FMT_EXTERNAL)
 #include <fmt/args.h>
 #else
