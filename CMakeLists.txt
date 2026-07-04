@@ -117,7 +117,8 @@ add_library(xmBase STATIC
     src/default_logger.cpp
     src/logger_vendor_spdlog.cpp
     src/rt_logger.cpp
-    src/rt_logger_mpsc.cpp)
+    src/rt_logger_mpsc.cpp
+    src/telemetry_unbound.cpp)
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
