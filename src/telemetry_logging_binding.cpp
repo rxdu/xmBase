@@ -148,6 +148,21 @@ void BuildArgStore(fmt::dynamic_format_arg_store<fmt::format_context>& store,
   }
 }
 
+void SetLevelImpl(Severity min_sev) noexcept {
+  try {
+    DefaultLogger::GetInstance().SetLoggerLevel(ToLogLevel(min_sev));
+  } catch (...) {
+  }
+}
+
+Severity GetLevelImpl() noexcept {
+  try {
+    return static_cast<Severity>(DefaultLogger::GetInstance().GetLoggerLevel());
+  } catch (...) {
+    return Severity::kWarn;
+  }
+}
+
 bool ShouldLogImpl(Severity sev) noexcept {
   try {
     return DefaultLogger::GetInstance().ShouldLog(ToLogLevel(sev));
@@ -241,6 +256,8 @@ const Binding* DefaultLoggingBinding() noexcept {
     b.get_signal = &GetSignalImpl;
     b.intern_source = &InternSourceImpl;
     b.should_log = &ShouldLogImpl;
+    b.set_level = &SetLevelImpl;
+    b.get_level = &GetLevelImpl;
     b.emit_event = &EmitEventImpl;
     b.emit_event_dyn = &EmitEventDynImpl;
     b.emit_span = &EmitSpanImpl;

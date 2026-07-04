@@ -71,7 +71,7 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
 
 1. **logging/** (`include/xmbase/logging/`): logging front-ends; the spdlog-backed
    implementation is the compiled part under `src/`.
-   - `xlogger.hpp`: soft-RT macros (`XLOG_INFO`, `XLOG_DEBUG`, …) — async spdlog default. fmt `{}` syntax; also stream-style (`XLOG_*_STREAM`).
+   - `xmbase/telemetry/event.hpp`: the logging macros (`XM_INFO`, `XM_DEBUG`, …; stream-style `XM_*_STREAM`) — the telemetry event() verb, interim spdlog backend. fmt `{}` syntax.
    - `rt_logger.hpp` / `rt_logger_mpsc.hpp`: hard-RT macros (`XLOG_RT_*`) — lock-free, allocation-free `RtLogger` (single-producer) and `MpscRtLogger` (multi-producer).
    - `ctrl_logger.hpp`: control-specific logger; `csv_logger.hpp`: CSV file logger; `event_logger.hpp`: structured event logger.
 
@@ -96,12 +96,12 @@ machinery lives in the optional xmTelemetry SDK. Unbound fallback: events >= War
 non-Ok health go to stderr; everything else no-ops.
 
 **Logging Module (ONE API with telemetry):**
-- `XLOG_*` is a facade over the telemetry `event()` verb — same funnel as `XM_*`; backed
+- The `XM_*` macros ARE the logging front-end (the former `XLOG_*` spelling was removed — clean break); backed
   today by the interim spdlog binding (`src/telemetry_logging_binding.cpp`), replaced
   wholesale when an application installs the xmTelemetry SDK binding.
 - Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
   compile-time `XMBASE_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
-- **Soft-RT default (`XLOG_*`):** async spdlog (caller formats + enqueues, a worker thread
+- **Soft-RT default (`XM_*`):** async spdlog (caller formats + enqueues, a worker thread
   does the I/O); a full queue drops the oldest record rather than blocking. Singleton
   `DefaultLogger`. Use for everything without a hard deadline.
 - **Hard-RT (`XLOG_RT_*`):** a per-loop `RtLogger`/`MpscRtLogger` over a lock-free ring drained
@@ -124,13 +124,13 @@ The logging system is controlled via environment variables:
 
 **Usage in code** (format strings use fmt `{}` syntax, **not** printf):
 ```cpp
-#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/telemetry/telemetry.hpp"
 
 // fmt-style (soft-RT, async)
-XLOG_INFO("Motor speed: {} RPM", speed);
+XM_INFO("Motor speed: {} RPM", speed);
 
 // Stream-style
-XLOG_DEBUG_STREAM("Position: " << x << ", " << y);
+XM_DEBUG_STREAM("Position: " << x << ", " << y);
 ```
 
 For a hard-real-time loop, use the `XLOG_RT_*` front-end instead:

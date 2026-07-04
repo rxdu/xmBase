@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "xmbase/logging/xlogger.hpp"  // the unified facade (one spine)
 #include "xmbase/telemetry/telemetry.hpp"
 
 namespace tel = xmotion::telemetry;
@@ -252,11 +251,11 @@ TEST_F(TelemetryBoundSeam, AllVerbsRouteThroughTheBinding) {
   EXPECT_TRUE(testing::internal::GetCapturedStderr().empty());
 }
 
-// THE unification proof (user requirement): XLOG_* is the SAME API — its
-// records flow through the identical binding seam as XM_*, one spine.
-TEST_F(TelemetryBoundSeam, XlogFacadeRoutesThroughTheSameSpine) {
-  XLOG_WARN("unified {}", 1);
-  XLOG_INFO_STREAM("streamed " << 42);
+// THE unification proof: fmt-style and stream-style logging are ONE API —
+// both flow through the identical binding seam as every other verb.
+TEST_F(TelemetryBoundSeam, FmtAndStreamMacrosRouteThroughTheSameSpine) {
+  XM_WARN("unified {}", 1);
+  XM_INFO_STREAM("streamed " << 42);
   ASSERT_EQ(FakeSdk::events.size(), 2u);
   EXPECT_EQ(FakeSdk::events[0], "3|unified {}");
   EXPECT_EQ(FakeSdk::events[1], "dyn|2|streamed 42");

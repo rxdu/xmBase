@@ -12,7 +12,7 @@ The substrate every other component plugs into.</p>
 utilities shared across components:
 
 - **Telemetry API** — the stateless XMotion instrumentation surface ([ADR 0004](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md)): four verbs (`event`/`metric`/`scope`/`signal`) + health, callable from a 1 kHz control loop; all machinery lives in the optional [xmTelemetry](https://github.com/rxdu/xmTelemetry) SDK, bound at runtime.
-- **Logging** — **one API with telemetry**: `XLOG_*` is a facade over the telemetry `event()` verb. Today it is backed by the interim spdlog binding in this repo (async soft-RT, env-var config, log files — behavior unchanged); when an application links the xmTelemetry SDK, the same call sites flow through its rings/sinks. `XLOG_RT_*` (lock-free hard-RT) remains separate until the SDK absorbs its ring (P0b).
+- **Logging** — **one API with telemetry**: the `XM_*` macros (`XM_INFO`, `XM_WARN_STREAM`, …) ARE the telemetry `event()` verb (the former `XLOG_*` spelling is gone — clean break). Today they are backed by the interim spdlog binding in this repo (async soft-RT, env-var config, log files); when an application links the xmTelemetry SDK, the same call sites flow through its rings/sinks. `XLOG_RT_*` (lock-free hard-RT) remains separate until the SDK absorbs its ring (P0b).
 - **Common types** — the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation).
 
 > Driver/control interfaces are intentionally **not** here — they belong to their owning
@@ -32,7 +32,8 @@ builds into one CMake target, `xmotion::xmBase`.
 
 | Path                              | Description                                                                 |
 |-----------------------------------|-----------------------------------------------------------------------------|
-| `include/xmbase/logging/`        | logging front-ends: `xlogger` (`XLOG_*`, soft-RT), `rt_logger` / `rt_logger_mpsc` (`XLOG_RT_*`, hard-RT), plus `csv_logger`, `ctrl_logger`, `event_logger` |
+| `include/xmbase/telemetry/`      | the instrumentation API: logging macros (`XM_*`, soft-RT via the event() verb), metric/scope/signal verbs, context spine, binding seam |
+| `include/xmbase/logging/`        | hard-RT logging (`rt_logger` / `rt_logger_mpsc`, `XLOG_RT_*`) plus `csv_logger`, `ctrl_logger`, `event_logger` |
 | `include/xmbase/types/`          | header-only common types: `base_types.hpp`, `geometry_types.hpp`            |
 | `src/`                            | spdlog-backed logging implementation (the compiled part)                    |
 
@@ -52,8 +53,8 @@ Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (def
 Two front-ends, picked by deadline (format strings use fmt `{}` syntax, not printf):
 
 ```cpp
-#include "xmbase/logging/xlogger.hpp"     // soft-RT (async)
-XLOG_INFO("motor speed: {} RPM", speed);
+#include "xmbase/telemetry/telemetry.hpp"  // the one instrumentation header
+XM_INFO("motor speed: {} RPM", speed);
 
 #include "xmbase/logging/rt_logger.hpp"   // hard-RT (lock-free, drop-on-full)
 xmotion::RtLogger rt("ctrl_loop");

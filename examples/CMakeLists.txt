@@ -6,8 +6,8 @@
 add_executable(ctrl_logger_example ctrl_logger_example.cpp)
 target_link_libraries(ctrl_logger_example xmBase)
 
-add_executable(xlogger_example xlogger_example.cpp)
-target_link_libraries(xlogger_example xmBase)
+add_executable(xm_logging_example xm_logging_example.cpp)
+target_link_libraries(xm_logging_example xmBase)
 
 add_executable(rt_logger_example rt_logger_example.cpp)
 target_link_libraries(rt_logger_example xmBase)
