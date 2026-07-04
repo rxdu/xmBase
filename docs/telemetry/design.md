@@ -3,7 +3,7 @@
 - Status: Active (API tier shipped; SDK lands in xmTelemetry P0b)
 - Governing decisions: [ADR 0004 — telemetry layering](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md); full-stack design in the [umbrella design doc](https://github.com/rxdu/xmotion/blob/main/docs/design/telemetry-library-design.md)
 - Executable specification: the [xmTelemetry scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (S1–S13)
-- Companion docs: [reference.md](reference.md) (every symbol + contract) · [guide.md](guide.md) (how to instrument) · [`examples/`](../../examples/)
+- Companion docs: [blueprint.md](blueprint.md) (the WHOLE module: tiers, data flow, roadmap, coverage) · [reference.md](reference.md) (every symbol + contract) · [guide.md](guide.md) (how to instrument) · [`examples/`](../../examples/)
 
 ## 1. What this is
 

@@ -7,7 +7,7 @@ How to instrument XMotion code with the telemetry API: logging, metrics, traces,
 namespace tel = xmotion::telemetry;
 ```
 
-Companions: [reference.md](reference.md) (every symbol + contract) · [design.md](design.md) (why it's shaped this way) · runnable [`examples/`](../../examples/) · the [xmTelemetry scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (the executable specification — S1 is the canonical hot loop, S2 the canonical trace pipeline, S3 the device-health pattern).
+Companions: [blueprint.md](blueprint.md) (the whole module: tiers, data flow, roadmap) · [reference.md](reference.md) (every symbol + contract) · [design.md](design.md) (why it's shaped this way) · runnable [`examples/`](../../examples/) · the [xmTelemetry scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (the executable specification — S1 is the canonical hot loop, S2 the canonical trace pipeline, S3 the device-health pattern).
 
 ## The two rules that matter
 
