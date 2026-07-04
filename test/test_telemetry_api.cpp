@@ -148,7 +148,7 @@ struct FakeSdk {
   static tel::detail::HistogramSlot histo_slot;
   static tel::detail::SignalSlot signal_slot;
   static std::vector<std::string> events;   // "sev|fmt"
-  static std::vector<std::string> spans;    // name
+  static std::vector<std::string> spans;    // "name|links=N"
   static std::vector<std::size_t> signals;  // payload sizes
   static std::vector<std::string> health;   // "subsystem|state"
 
@@ -174,8 +174,14 @@ struct FakeSdk {
                        std::string(msg, len));
     };
     b.emit_span = [](const char* name, tel::Context, tel::SpanId,
-                     tel::Timestamp, tel::Timestamp) noexcept {
-      spans.push_back(name);
+                     tel::Timestamp, tel::Timestamp,
+                     const tel::Context* links,
+                     std::uint8_t link_count) noexcept {
+      std::string entry = std::string(name) + "|links=" +
+                          std::to_string(static_cast<int>(link_count));
+      for (std::uint8_t i = 0; i < link_count; ++i)
+        if (!links[i].valid()) entry += "|INVALID";
+      spans.push_back(entry);
     };
     b.emit_signal = [](tel::detail::SignalSlot*, const void*,
                        std::size_t size, tel::Timestamp) noexcept {
@@ -236,7 +242,7 @@ TEST_F(TelemetryBoundSeam, AllVerbsRouteThroughTheBinding) {
 
   { XM_SCOPE("b.scope"); }
   ASSERT_EQ(FakeSdk::spans.size(), 1u);
-  EXPECT_EQ(FakeSdk::spans[0], "b.scope");
+  EXPECT_EQ(FakeSdk::spans[0], "b.scope|links=0");
 
   auto ch = tel::GetChannel<Pod>("b.channel");
   ch.Publish(Pod{1, 2});
@@ -259,6 +265,38 @@ TEST_F(TelemetryBoundSeam, FmtAndStreamMacrosRouteThroughTheSameSpine) {
   ASSERT_EQ(FakeSdk::events.size(), 2u);
   EXPECT_EQ(FakeSdk::events[0], "3|unified {}");
   EXPECT_EQ(FakeSdk::events[1], "dyn|2|streamed 42");
+}
+
+// _SRC stream forms: source-attributed pre-formatted messages, same funnel.
+TEST_F(TelemetryBoundSeam, SourceAttributedStreamRoutesWithSource) {
+  const tel::EventSource src = tel::GetEventSource("b.imu");
+  XM_WARN_STREAM_SRC(src, "stale " << 42 << " ms");
+  ASSERT_EQ(FakeSdk::events.size(), 1u);
+  EXPECT_EQ(FakeSdk::events[0], "dyn|3|stale 42 ms");
+}
+
+// D7: span links — single (macro), fan-in via AddLink, bounded overflow.
+TEST_F(TelemetryBoundSeam, SpanLinksCarryThroughTheSeam) {
+  const tel::Context upstream = tel::NewTrace();
+  { XM_SCOPE_LINKED("b.linked", upstream); }
+  ASSERT_EQ(FakeSdk::spans.size(), 1u);
+  EXPECT_EQ(FakeSdk::spans[0], "b.linked|links=1");
+
+  {
+    tel::Scope gather("b.gather");
+    for (int i = 0; i < 6; ++i) gather.AddLink(tel::NewTrace());  // 6 > cap
+    gather.AddLink(tel::Context{});  // invalid: must be ignored
+  }
+  ASSERT_EQ(FakeSdk::spans.size(), 2u);
+  EXPECT_EQ(FakeSdk::spans[1],
+            "b.gather|links=" + std::to_string(int(tel::kMaxSpanLinks)));
+}
+
+TEST(TelemetryScope, LinksAreSafeUnbound) {
+  tel::InstallBinding(nullptr);
+  tel::Scope s("unbound.links");
+  s.AddLink(tel::NewTrace());
+  SUCCEED();  // no emit, no crash
 }
 
 TEST_F(TelemetryBoundSeam, SourceAttributedEventsCarryInternedId) {

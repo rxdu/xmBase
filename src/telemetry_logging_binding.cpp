@@ -214,8 +214,8 @@ void EmitEventDynImpl(std::uint32_t source_id, Severity sev, const char* msg,
   }
 }
 
-void EmitSpanImpl(const char*, Context, SpanId, Timestamp,
-                  Timestamp) noexcept {
+void EmitSpanImpl(const char*, Context, SpanId, Timestamp, Timestamp,
+                  const Context*, std::uint8_t) noexcept {
   // recording plane arrives with the SDK; spans are dropped in the interim
 }
 
