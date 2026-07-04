@@ -11,7 +11,8 @@ The substrate every other component plugs into.</p>
 `xmBase` is the foundation of the **XMotion** product family. It provides the low-level
 utilities shared across components:
 
-- **Logging** — a dual-mode logging system on an spdlog backend: an async **soft-RT** front-end (`XLOG_*`) for general use, and a lock-free, allocation-free **hard-RT** front-end (`XLOG_RT_*`) for control loops with a hard deadline. Configurable via environment variables.
+- **Telemetry API** — the stateless XMotion instrumentation surface ([ADR 0004](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md)): four verbs (`event`/`metric`/`scope`/`signal`) + health, callable from a 1 kHz control loop; all machinery lives in the optional [xmTelemetry](https://github.com/rxdu/xmTelemetry) SDK, bound at runtime.
+- **Logging** — **one API with telemetry**: `XLOG_*` is a facade over the telemetry `event()` verb. Today it is backed by the interim spdlog binding in this repo (async soft-RT, env-var config, log files — behavior unchanged); when an application links the xmTelemetry SDK, the same call sites flow through its rings/sinks. `XLOG_RT_*` (lock-free hard-RT) remains separate until the SDK absorbs its ring (P0b).
 - **Common types** — the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation).
 
 > Driver/control interfaces are intentionally **not** here — they belong to their owning

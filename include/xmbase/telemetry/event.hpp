@@ -54,6 +54,16 @@ inline EventSource GetEventSource(const char* name) noexcept {
   return EventSource(b != nullptr ? b->intern_source(name) : 0u, name);
 }
 
+// Runtime level gate: true if an event at `sev` would currently be recorded.
+// Bound: the binding's runtime level (the SDK's, or DefaultLogger's for the
+// interim logging binding). Unbound: the stderr threshold (Warn+). Use this
+// to skip expensive message construction (the XLOG_*_STREAM macros do).
+inline bool ShouldLog(Severity sev) noexcept {
+  const Binding* b = ActiveBinding();
+  if (b != nullptr) return b->should_log == nullptr || b->should_log(sev);
+  return sev >= Severity::kWarn;
+}
+
 namespace detail {
 
 // Single funnel behind the macros. `fmt` and (for the unbound path)
@@ -61,12 +71,27 @@ namespace detail {
 template <typename... Args>
 void EmitEvent(std::uint32_t source_id, const char* source_name, Severity sev,
                const char* fmt, Args&&... args) noexcept {
-  const ArgPack pack = PackArgs(std::forward<Args>(args)...);
   const Binding* b = ActiveBinding();
   if (b != nullptr) {
+    if (b->should_log != nullptr && !b->should_log(sev)) return;  // pre-pack
+    const ArgPack pack = PackArgs(std::forward<Args>(args)...);
     b->emit_event(source_id, sev, fmt, pack, CurrentContext(), Now());
   } else if (sev >= Severity::kWarn) {
+    const ArgPack pack = PackArgs(std::forward<Args>(args)...);
     UnboundEmitEvent(source_name, sev, fmt, pack);
+  }
+}
+
+// Dynamic-string funnel (pre-formatted messages; the XLOG stream path).
+inline void EmitEventDyn(std::uint32_t source_id, const char* source_name,
+                         Severity sev, const char* msg,
+                         std::size_t len) noexcept {
+  const Binding* b = ActiveBinding();
+  if (b != nullptr) {
+    if (b->should_log != nullptr && !b->should_log(sev)) return;
+    b->emit_event_dyn(source_id, sev, msg, len, CurrentContext(), Now());
+  } else if (sev >= Severity::kWarn) {
+    UnboundEmitEventDyn(source_name, sev, msg, len);
   }
 }
 

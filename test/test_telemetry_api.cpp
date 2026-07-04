@@ -14,15 +14,22 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "xmbase/logging/xlogger.hpp"  // the unified facade (one spine)
 #include "xmbase/telemetry/telemetry.hpp"
 
 namespace tel = xmotion::telemetry;
 
 namespace {
 
+// NOTE: xmBase auto-adopts the interim spdlog logging binding on first use
+// (ENABLE_LOGGING builds). Tests of the TRUE unbound contract pin it with an
+// explicit InstallBinding(nullptr) — an explicit unbind is authoritative and
+// disables auto-adoption (see binding.hpp).
+
 // ---------- unbound contract (S6 shape) --------------------------------------
 
 TEST(TelemetryUnbound, WarnAndAboveReachStderrFormatted) {
+  ASSERT_TRUE(tel::InstallBinding(nullptr));
   ASSERT_EQ(tel::ActiveBinding(), nullptr);
   testing::internal::CaptureStderr();
   XM_WARN("saturated cmd={} limit={}", 1.5, 2);
@@ -39,6 +46,7 @@ TEST(TelemetryUnbound, WarnAndAboveReachStderrFormatted) {
 }
 
 TEST(TelemetryUnbound, HealthNonOkReachesStderr) {
+  tel::InstallBinding(nullptr);
   testing::internal::CaptureStderr();
   tel::ReportHealth("imu", tel::HealthState::kOk, "fine");        // silent
   tel::ReportHealth("imu", tel::HealthState::kDegraded, "stale"); // reported
@@ -53,6 +61,7 @@ struct Pod {
 };
 
 TEST(TelemetryUnbound, VerbsAreSafeNoops) {
+  tel::InstallBinding(nullptr);
   auto counter = tel::GetCounter("t.counter");
   auto gauge = tel::GetGauge("t.gauge");
   auto histo = tel::GetHistogram("t.histo");
@@ -153,10 +162,17 @@ struct FakeSdk {
     b.get_signal = [](std::string_view, std::size_t, std::size_t,
                       const char*) { return &signal_slot; };
     b.intern_source = [](std::string_view) { return 7u; };
+    b.should_log = [](tel::Severity) noexcept { return true; };
     b.emit_event = [](std::uint32_t, tel::Severity sev, const char* fmt,
                       const tel::detail::ArgPack&, tel::Context,
                       tel::Timestamp) noexcept {
       events.push_back(std::to_string(static_cast<int>(sev)) + "|" + fmt);
+    };
+    b.emit_event_dyn = [](std::uint32_t, tel::Severity sev, const char* msg,
+                          std::size_t len, tel::Context,
+                          tel::Timestamp) noexcept {
+      events.push_back("dyn|" + std::to_string(static_cast<int>(sev)) + "|" +
+                       std::string(msg, len));
     };
     b.emit_span = [](const char* name, tel::Context, tel::SpanId,
                      tel::Timestamp, tel::Timestamp) noexcept {
@@ -236,6 +252,16 @@ TEST_F(TelemetryBoundSeam, AllVerbsRouteThroughTheBinding) {
   EXPECT_TRUE(testing::internal::GetCapturedStderr().empty());
 }
 
+// THE unification proof (user requirement): XLOG_* is the SAME API — its
+// records flow through the identical binding seam as XM_*, one spine.
+TEST_F(TelemetryBoundSeam, XlogFacadeRoutesThroughTheSameSpine) {
+  XLOG_WARN("unified {}", 1);
+  XLOG_INFO_STREAM("streamed " << 42);
+  ASSERT_EQ(FakeSdk::events.size(), 2u);
+  EXPECT_EQ(FakeSdk::events[0], "3|unified {}");
+  EXPECT_EQ(FakeSdk::events[1], "dyn|2|streamed 42");
+}
+
 TEST_F(TelemetryBoundSeam, SourceAttributedEventsCarryInternedId) {
   const tel::EventSource src = tel::GetEventSource("b.motor");
   EXPECT_EQ(src.id(), 7u);
@@ -245,6 +271,7 @@ TEST_F(TelemetryBoundSeam, SourceAttributedEventsCarryInternedId) {
 }
 
 TEST(TelemetryBinding, AbiMismatchIsRejected) {
+  tel::InstallBinding(nullptr);  // pin a known state (disables auto-adoption)
   tel::Binding bad = FakeSdk::Make();
   bad.abi_version = 999;
   EXPECT_FALSE(tel::InstallBinding(&bad));
@@ -264,6 +291,7 @@ TEST(TelemetryBinding, UninstallRevertsToUnbound) {
 // Handles acquired unbound stay inert after a binding installs (documented
 // D9/D14 contract) — and remain SAFE, which is the part that matters.
 TEST(TelemetryBinding, PreBindHandlesStayInertButSafe) {
+  tel::InstallBinding(nullptr);
   auto early = tel::GetCounter("later");
   tel::Binding b = FakeSdk::Make();
   ASSERT_TRUE(tel::InstallBinding(&b));
@@ -276,6 +304,7 @@ TEST(TelemetryBinding, PreBindHandlesStayInertButSafe) {
 // ---------- deferred-format edge cases ----------------------------------------
 
 TEST(TelemetryUnbound, FormatterHandlesEdgeCases) {
+  tel::InstallBinding(nullptr);
   testing::internal::CaptureStderr();
   XM_WARN("brace {{literal}} kept, spec {:.3f} ignored-but-consumed", 1.5);
   XM_WARN("missing arg: {} {}", 1);  // second placeholder has no arg

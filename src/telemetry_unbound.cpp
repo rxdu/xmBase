@@ -24,6 +24,10 @@ namespace telemetry {
 namespace {
 
 std::atomic<const Binding*> g_binding{nullptr};
+// Set by any EXPLICIT InstallBinding call (incl. nullptr). Once set, the
+// interim logging binding is never auto-adopted again — an explicit unbind
+// (SDK Shutdown, or a test pinning the true-unbound state) is authoritative.
+std::atomic<bool> g_explicitly_set{false};
 
 const char* SeverityName(Severity s) {
   switch (s) {
@@ -124,12 +128,28 @@ void FormatInto(char* out, std::size_t cap, const char* fmt,
 bool InstallBinding(const Binding* binding) noexcept {
   if (binding != nullptr && binding->abi_version != kBindingAbiVersion)
     return false;
+  g_explicitly_set.store(true, std::memory_order_relaxed);
   g_binding.store(binding, std::memory_order_release);
   return true;
 }
 
 const Binding* ActiveBinding() noexcept {
-  return g_binding.load(std::memory_order_acquire);
+  const Binding* b = g_binding.load(std::memory_order_acquire);
+  if (b == nullptr && !g_explicitly_set.load(std::memory_order_relaxed)) {
+    // Lazily adopt the interim spdlog-backed logging binding (ADR 0004 §7):
+    // XLOG_*/XM_* keep today's logging behavior with zero init calls until
+    // the xmTelemetry SDK installs the real machinery. CAS so a concurrent
+    // explicit InstallBinding wins.
+    const Binding* def = detail::DefaultLoggingBinding();
+    if (def != nullptr) {
+      const Binding* expected = nullptr;
+      g_binding.compare_exchange_strong(expected, def,
+                                        std::memory_order_acq_rel,
+                                        std::memory_order_acquire);
+      b = g_binding.load(std::memory_order_acquire);
+    }
+  }
+  return b;
 }
 
 namespace detail {
@@ -157,6 +177,17 @@ void UnboundEmitEvent(const char* source, Severity sev, const char* fmt,
                  source, msg);
   } else {
     std::fprintf(stderr, "[xmtelemetry:%s] %s\n", SeverityName(sev), msg);
+  }
+}
+
+void UnboundEmitEventDyn(const char* source, Severity sev, const char* msg,
+                         std::size_t len) noexcept {
+  const int n = len > 480 ? 480 : static_cast<int>(len);
+  if (source != nullptr && source[0] != '\0') {
+    std::fprintf(stderr, "[xmtelemetry:%s] [%s] %.*s\n", SeverityName(sev),
+                 source, n, msg);
+  } else {
+    std::fprintf(stderr, "[xmtelemetry:%s] %.*s\n", SeverityName(sev), n, msg);
   }
 }
 

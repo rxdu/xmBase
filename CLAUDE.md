@@ -89,7 +89,16 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
 - `xmBase` is one STATIC library aggregating logging + the common types; consumers `find_package(xmBase)` and link `xmotion::xmBase`.
 - There are intentionally no driver/control interfaces here — they belong to xmDriver's HAL (`xmmu/hal/`). Keeping xmBase free of upper-layer specifics is a load-bearing design rule, not an accident.
 
-**Logging Module (dual-mode):**
+**Telemetry API (xmbase/telemetry/, ADR 0004):** the stateless XMotion instrumentation
+surface — 4 verbs (`event`/`metric`/`scope`/`signal`) + health, context spine
+(TraceId/Context/NewTrace/Inject/Extract), install-once binding seam (`binding.hpp`). All
+machinery lives in the optional xmTelemetry SDK. Unbound fallback: events >= Warn and
+non-Ok health go to stderr; everything else no-ops.
+
+**Logging Module (ONE API with telemetry):**
+- `XLOG_*` is a facade over the telemetry `event()` verb — same funnel as `XM_*`; backed
+  today by the interim spdlog binding (`src/telemetry_logging_binding.cpp`), replaced
+  wholesale when an application installs the xmTelemetry SDK binding.
 - Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
   compile-time `XMBASE_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
 - **Soft-RT default (`XLOG_*`):** async spdlog (caller formats + enqueues, a worker thread
