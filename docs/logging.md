@@ -2,7 +2,7 @@
 
 Two front-ends, picked by deadline:
 
-* **Soft-RT (default): `XLOG_*`** (`xlogger.hpp`) — async spdlog. The caller formats and enqueues; a worker thread does the I/O. A full queue drops the *oldest* record (`overrun_oldest`) rather than blocking. Use this for everything without a hard deadline.
+* **Soft-RT (default): `XM_*`** (`xmbase/telemetry/telemetry.hpp` — the telemetry event() verb) — async spdlog via the interim binding. The caller formats and enqueues; a worker thread does the I/O. A full queue drops the *oldest* record (`overrun_oldest`) rather than blocking. Use this for everything without a hard deadline.
 * **Hard-RT: `XLOG_RT_*`** (`rt_logger.hpp`, `rt_logger_mpsc.hpp`) — a lock-free ring drained by a background thread. The producer path is wait-free (SPSC) / lock-free (MPSC), allocation-free, syscall-free (only a vDSO clock read), and never blocks; a full ring drops the *newest* record and bumps `dropped()`. Use this only inside loops with an explicit hard deadline.
 
 ## Environment variables

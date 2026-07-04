@@ -71,9 +71,9 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
 
 1. **logging/** (`include/xmbase/logging/`): logging front-ends; the spdlog-backed
    implementation is the compiled part under `src/`.
-   - `xlogger.hpp`: soft-RT macros (`XLOG_INFO`, `XLOG_DEBUG`, …) — async spdlog default. fmt `{}` syntax; also stream-style (`XLOG_*_STREAM`).
+   - `xmbase/telemetry/event.hpp`: the logging macros (`XM_INFO`, `XM_DEBUG`, …; stream-style `XM_*_STREAM`) — the telemetry event() verb, interim spdlog backend. fmt `{}` syntax.
    - `rt_logger.hpp` / `rt_logger_mpsc.hpp`: hard-RT macros (`XLOG_RT_*`) — lock-free, allocation-free `RtLogger` (single-producer) and `MpscRtLogger` (multi-producer).
-   - `ctrl_logger.hpp`: control-specific logger; `csv_logger.hpp`: CSV file logger; `event_logger.hpp`: structured event logger.
+   - (specialized csv/ctrl/event loggers were removed — use the telemetry verbs.)
 
 2. **types/** (`include/xmbase/types/`): Header-only common type vocabulary (namespace `xmotion`)
    - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
@@ -89,10 +89,27 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
 - `xmBase` is one STATIC library aggregating logging + the common types; consumers `find_package(xmBase)` and link `xmotion::xmBase`.
 - There are intentionally no driver/control interfaces here — they belong to xmDriver's HAL (`xmmu/hal/`). Keeping xmBase free of upper-layer specifics is a load-bearing design rule, not an accident.
 
-**Logging Module (dual-mode):**
+**Telemetry API (xmbase/telemetry/, ADR 0004):** the stateless XMotion instrumentation
+surface — 4 verbs (`event`/`metric`/`scope`/`signal`) + health, context spine
+(TraceId/Context/NewTrace/Inject/Extract), install-once binding seam (`binding.hpp`). All
+machinery lives in the optional xmTelemetry SDK. Unbound fallback: events >= Warn and
+non-Ok health go to stderr; everything else no-ops.
+
+**xmbase/logging/ is transitional (departure map):** every resident leaves xmBase per
+ADR 0004 — `details/`+spdlog backend -> replaced by the SDK ConsoleSink (P0b/P1);
+`rt_logger*` -> its Vyukov ring becomes the SDK capture channel (P0b), then `XLOG_RT_*`
+dissolves into RT-safe `XM_*`; `csv/ctrl/event_logger` (zero consumers) -> DELETED
+(2026-07-04; superseded by `signal()`/`event()` + McapSink). End state: the folder is
+deleted; xmBase = `telemetry/` (API) + `types/` + containers. Do NOT move machinery under
+`xmbase/telemetry/` — that directory is the stateless API tier by definition.
+
+**Logging Module (ONE API with telemetry):**
+- The `XM_*` macros ARE the logging front-end (the former `XLOG_*` spelling was removed — clean break); backed
+  today by the interim spdlog binding (`src/telemetry_logging_binding.cpp`), replaced
+  wholesale when an application installs the xmTelemetry SDK binding.
 - Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
   compile-time `XMBASE_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
-- **Soft-RT default (`XLOG_*`):** async spdlog (caller formats + enqueues, a worker thread
+- **Soft-RT default (`XM_*`):** async spdlog (caller formats + enqueues, a worker thread
   does the I/O); a full queue drops the oldest record rather than blocking. Singleton
   `DefaultLogger`. Use for everything without a hard deadline.
 - **Hard-RT (`XLOG_RT_*`):** a per-loop `RtLogger`/`MpscRtLogger` over a lock-free ring drained
@@ -115,13 +132,13 @@ The logging system is controlled via environment variables:
 
 **Usage in code** (format strings use fmt `{}` syntax, **not** printf):
 ```cpp
-#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/telemetry/telemetry.hpp"
 
 // fmt-style (soft-RT, async)
-XLOG_INFO("Motor speed: {} RPM", speed);
+XM_INFO("Motor speed: {} RPM", speed);
 
 // Stream-style
-XLOG_DEBUG_STREAM("Position: " << x << ", " << y);
+XM_DEBUG_STREAM("Position: " << x << ", " << y);
 ```
 
 For a hard-real-time loop, use the `XLOG_RT_*` front-end instead:

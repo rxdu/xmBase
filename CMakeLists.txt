@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2)
-project(xmBase VERSION 0.2.0)
+project(xmBase VERSION 0.3.0)
 
 message(STATUS "------------------------------------------------")
 if (PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
@@ -113,11 +113,12 @@ if (USE_SYS_SPDLOG)
 endif ()
 
 add_library(xmBase STATIC
-    src/ctrl_logger.cpp
     src/default_logger.cpp
     src/logger_vendor_spdlog.cpp
     src/rt_logger.cpp
-    src/rt_logger_mpsc.cpp)
+    src/rt_logger_mpsc.cpp
+    src/telemetry_unbound.cpp
+    src/telemetry_logging_binding.cpp)
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
