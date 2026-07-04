@@ -359,6 +359,28 @@ TEST_F(TelemetryBoundSeam, ArgPackBoundsAreEnforced) {
   EXPECT_GT(FakeSdk::packs[0].lens[0], 100u);  // truncated, not dropped
 }
 
+// Histogram buckets (ABI v3): power-of-two boundaries, percentile-capable.
+TEST(TelemetryMetrics, HistogramBucketsFollowPowerOfTwoBoundaries) {
+  using tel::detail::HistogramBucketOf;
+  EXPECT_EQ(HistogramBucketOf(-5.0), 0u);
+  EXPECT_EQ(HistogramBucketOf(0.0), 0u);
+  EXPECT_EQ(HistogramBucketOf(0.9), 0u);
+  EXPECT_EQ(HistogramBucketOf(1.0), 1u);    // [1,2)
+  EXPECT_EQ(HistogramBucketOf(1.99), 1u);
+  EXPECT_EQ(HistogramBucketOf(2.0), 2u);    // [2,4)
+  EXPECT_EQ(HistogramBucketOf(1000.0), 10u);  // [512,1024)
+  EXPECT_EQ(HistogramBucketOf(1e12), 23u);  // overflow bucket
+
+  tel::detail::HistogramSlot slot;
+  for (int v = 1; v <= 1000; ++v) slot.Record(v);
+  EXPECT_EQ(slot.count.load(), 1000u);
+  std::uint64_t total = 0;
+  for (std::size_t i = 0; i < tel::detail::kHistogramBuckets; ++i)
+    total += slot.buckets[i].load();
+  EXPECT_EQ(total, 1000u);                     // every record in some bucket
+  EXPECT_EQ(slot.buckets[10].load(), 489u);    // [512,1000] inclusive
+}
+
 // ---------- deferred-format edge cases ----------------------------------------
 
 TEST(TelemetryUnbound, FormatterHandlesEdgeCases) {
