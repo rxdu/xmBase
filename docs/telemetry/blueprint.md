@@ -2,7 +2,7 @@
 
 The complete picture of the telemetry module — every tier, the data flow end to end, what exists today vs. what lands per phase, and where every piece is specified, documented, and demonstrated. The API tier (this repo) is the part users touch; this document is the map of everything behind it.
 
-Companions: [design.md](design.md) (API-tier design) · [reference.md](reference.md) (symbol contracts) · [guide.md](guide.md) (how to instrument) · [ADR 0004](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md) + [umbrella design doc](https://github.com/rxdu/xmotion/blob/main/docs/design/telemetry-library-design.md) (full-stack rationale) · [scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (executable spec).
+Companions: [design.md](design.md) (API-tier design) · [reference.md](reference.md) (symbol contracts) · [guide.md](guide.md) (how to instrument) · [comparison.md](comparison.md) (application coverage + OpenTelemetry comparison) · [ADR 0004](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md) + [umbrella design doc](https://github.com/rxdu/xmotion/blob/main/docs/design/telemetry-library-design.md) (full-stack rationale) · [scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (executable spec).
 
 ## 1. The full stack
 
