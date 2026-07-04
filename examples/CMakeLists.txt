@@ -11,3 +11,9 @@ target_link_libraries(xm_logging_example xmBase)
 
 add_executable(types_example types_example.cpp)
 target_link_libraries(types_example xmBase)
+
+add_executable(instrumented_control_loop_example instrumented_control_loop_example.cpp)
+target_link_libraries(instrumented_control_loop_example xmBase)
+
+add_executable(trace_pipeline_example trace_pipeline_example.cpp)
+target_link_libraries(trace_pipeline_example xmBase)
