@@ -22,7 +22,7 @@ thread, at the wrong time:
   log call (even for level-filtered messages).
 - **`_STREAM` macros formatted unconditionally** — a `std::stringstream` (locale +
   heap) was built and `.str()` allocated *before* any level check, so a disabled
-  `XLOG_DEBUG_STREAM` in a hot loop still allocated every cycle.
+  `XM_DEBUG_STREAM` in a hot loop still allocated every cycle.
 - **Init race.** The singleton object was created by the magic-static, but
   `Initialize()` was gated separately by an atomic flag; a second thread could get
   the instance and call `Log()` before the first thread finished assigning
@@ -76,8 +76,8 @@ the shared spdlog sinks for actual I/O.
 
 ```cpp
 // Soft-RT (default) — signatures unchanged; async behind the scenes.
-XLOG_INFO("v = {}", v);                 // fmt {}-style (NOT printf %d)
-XLOG_DEBUG_STREAM("pose " << x << y);   // level-gated before formatting
+XM_INFO("v = {}", v);                 // fmt {}-style (NOT printf %d)
+XM_DEBUG_STREAM("pose " << x << y);   // level-gated before formatting
 
 // Compile-time floor: levels below XMBASE_ACTIVE_LEVEL vanish at compile time.
 //   -DXMBASE_ACTIVE_LEVEL=2   // INFO; trace/debug compiled out

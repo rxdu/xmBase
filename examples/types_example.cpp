@@ -10,7 +10,7 @@
 
 #include <thread>
 
-#include "xmbase/logging/xlogger.hpp"
+#include "xmbase/telemetry/telemetry.hpp"
 #include "xmbase/types/types.hpp"        // scalar/time/vector/geometry/stamped
 #include "xmbase/types/quantities.hpp"   // opt-in strong quantities
 
@@ -23,7 +23,7 @@ int main() {
   pose.position = Position3d(1.0, 2.0, 0.5);
   pose.orientation =
       Quaterniond(Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitZ()));
-  XLOG_INFO("pose: p=({:.2f},{:.2f},{:.2f}) yaw_w={:.3f}", pose.position.x(),
+  XM_INFO("pose: p=({:.2f},{:.2f},{:.2f}) yaw_w={:.3f}", pose.position.x(),
             pose.position.y(), pose.position.z(), pose.orientation.w());
 
   Twist cmd;
@@ -36,20 +36,20 @@ int main() {
   odom.pose = pose;
   odom.twist = cmd;
   odom.stamp = Now();
-  XLOG_INFO("odometry: {} in {} (vx={:.2f} wz={:.2f})", odom.child_frame_id,
+  XM_INFO("odometry: {} in {} (vx={:.2f} wz={:.2f})", odom.child_frame_id,
             odom.frame_id, odom.twist.linear.x(), odom.twist.angular.z());
 
   // --- time vocabulary: monotonic, nanosecond resolution --------------------
   const Timestamp t0 = Now();
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
   const Duration elapsed = Now() - t0;
-  XLOG_INFO("elapsed {} us",
+  XM_INFO("elapsed {} us",
             std::chrono::duration_cast<std::chrono::microseconds>(elapsed)
                 .count());
 
   // --- Stamped<T>: pair a value with the time it was produced ---------------
   Stamped<Pose> stamped_pose = StampNow(pose);
-  XLOG_INFO("stamped pose captured at t={} ns",
+  XM_INFO("stamped pose captured at t={} ns",
             stamped_pose.stamp.time_since_epoch().count());
 
   // --- opt-in strong quantities: distinct types, closed arithmetic ----------
@@ -57,12 +57,12 @@ int main() {
   Force f_push(2.0, 0.0, 0.0);
   Force f_net = f_grav + f_push;       // Force + Force -> Force
   Torque tau(0.0, 0.0, 0.5);
-  XLOG_INFO("net force = ({:.2f},{:.2f},{:.2f}), |tau| = {:.2f}", f_net.x(),
+  XM_INFO("net force = ({:.2f},{:.2f},{:.2f}), |tau| = {:.2f}", f_net.x(),
             f_net.y(), f_net.z(), tau.norm());
 
   // The escape hatch reaches Eigen for real math:
   const double work = f_push.vec().dot(pose.position);  // F . d
-  XLOG_INFO("work along displacement = {:.3f} J", work);
+  XM_INFO("work along displacement = {:.3f} J", work);
 
   // The whole point of strong typing — these would NOT compile, the type system
   // rejects the mix-up:

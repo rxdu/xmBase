@@ -45,9 +45,12 @@ namespace telemetry {
 
 inline constexpr std::uint32_t kBindingAbiVersion = 1;
 
-// Severity shared by events and the unbound fallback threshold.
+// Severity shared by events and the unbound fallback threshold. kOff is a
+// FILTER value only (SetLogLevel(kOff) silences everything) — never an emit
+// severity.
 enum class Severity : std::uint8_t {
   kTrace = 0, kDebug = 1, kInfo = 2, kWarn = 3, kError = 4, kFatal = 5,
+  kOff = 6,
 };
 
 enum class HealthState : std::uint8_t {
@@ -215,13 +218,16 @@ struct Binding {
   std::uint32_t (*intern_source)(std::string_view name);  // EventSource id
 
   // hot path (RT-safe by contract)
-  // Runtime level gate: lets call sites (incl. the XLOG stream macros) skip
+  // Runtime level gate: lets call sites (incl. the XM_*_STREAM macros) skip
   // argument packing / string building for suppressed severities.
   bool (*should_log)(Severity sev) noexcept;
+  // Runtime minimum-severity control (SetLogLevel/GetLogLevel).
+  void (*set_level)(Severity min_sev) noexcept;
+  Severity (*get_level)() noexcept;
   void (*emit_event)(std::uint32_t source_id, Severity sev, const char* fmt,
                      const detail::ArgPack& args, Context ctx,
                      Timestamp ts) noexcept;
-  // Pre-formatted / dynamic-string events (the XLOG_*_STREAM path and other
+  // Pre-formatted / dynamic-string events (the XM_*_STREAM path and other
   // non-literal messages): `msg` need NOT be a string literal — the SDK must
   // copy it before returning. Non-RT convenience.
   void (*emit_event_dyn)(std::uint32_t source_id, Severity sev,

@@ -37,6 +37,7 @@ const char* SeverityName(Severity s) {
     case Severity::kWarn: return "WARN";
     case Severity::kError: return "ERROR";
     case Severity::kFatal: return "FATAL";
+    case Severity::kOff: break;  // filter value, never emitted
   }
   return "?";
 }

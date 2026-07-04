@@ -2,7 +2,7 @@
  * rt_logger.hpp
  *
  * Hard-real-time logging front-end. Use this only where a loop has an explicit
- * hard deadline; for everything else use XLOG_* (xlogger.hpp), which is the
+ * hard deadline; for everything else use XM_* (xmbase/telemetry), which is the
  * soft-RT async default.
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
@@ -25,7 +25,7 @@
 
 #include "xmbase/logging/details/logger_interface.hpp"
 
-// Compile-time level floor, shared with xlogger.hpp (idempotent definition).
+// Compile-time level floor for the RT macros (idempotent definition).
 #ifndef XMBASE_ACTIVE_LEVEL
 #define XMBASE_ACTIVE_LEVEL 0
 #endif
