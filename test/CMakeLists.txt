@@ -37,3 +37,7 @@ gtest_discover_tests(test_ring_buffer)
 add_executable(test_serialization test_serialization.cpp)
 target_link_libraries(test_serialization xmBase gtest gtest_main)
 gtest_discover_tests(test_serialization)
+
+add_executable(test_telemetry_api test_telemetry_api.cpp)
+target_link_libraries(test_telemetry_api xmBase gtest gtest_main)
+gtest_discover_tests(test_telemetry_api)
