@@ -73,7 +73,7 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
    implementation is the compiled part under `src/`.
    - `xmbase/telemetry/event.hpp`: the logging macros (`XM_INFO`, `XM_DEBUG`, …; stream-style `XM_*_STREAM`) — the telemetry event() verb, interim spdlog backend. fmt `{}` syntax.
    - `rt_logger.hpp` / `rt_logger_mpsc.hpp`: hard-RT macros (`XLOG_RT_*`) — lock-free, allocation-free `RtLogger` (single-producer) and `MpscRtLogger` (multi-producer).
-   - `ctrl_logger.hpp`: control-specific logger; `csv_logger.hpp`: CSV file logger; `event_logger.hpp`: structured event logger.
+   - (specialized csv/ctrl/event loggers were removed — use the telemetry verbs.)
 
 2. **types/** (`include/xmbase/types/`): Header-only common type vocabulary (namespace `xmotion`)
    - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
@@ -98,8 +98,8 @@ non-Ok health go to stderr; everything else no-ops.
 **xmbase/logging/ is transitional (departure map):** every resident leaves xmBase per
 ADR 0004 — `details/`+spdlog backend -> replaced by the SDK ConsoleSink (P0b/P1);
 `rt_logger*` -> its Vyukov ring becomes the SDK capture channel (P0b), then `XLOG_RT_*`
-dissolves into RT-safe `XM_*`; `csv/ctrl/event_logger` (zero in-family consumers) ->
-deprecated, superseded by `signal()`/`event()` + McapSink (P2/P3). End state: the folder is
+dissolves into RT-safe `XM_*`; `csv/ctrl/event_logger` (zero consumers) -> DELETED
+(2026-07-04; superseded by `signal()`/`event()` + McapSink). End state: the folder is
 deleted; xmBase = `telemetry/` (API) + `types/` + containers. Do NOT move machinery under
 `xmbase/telemetry/` — that directory is the stateless API tier by definition.
 
