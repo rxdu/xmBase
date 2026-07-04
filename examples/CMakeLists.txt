@@ -23,3 +23,6 @@ target_link_libraries(device_health_example xmBase)
 
 add_executable(custom_binding_example custom_binding_example.cpp)
 target_link_libraries(custom_binding_example xmBase)
+
+add_executable(worker_pool_context_example worker_pool_context_example.cpp)
+target_link_libraries(worker_pool_context_example xmBase)
