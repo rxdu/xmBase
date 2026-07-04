@@ -148,6 +148,7 @@ struct FakeSdk {
   static tel::detail::HistogramSlot histo_slot;
   static tel::detail::SignalSlot signal_slot;
   static std::vector<std::string> events;   // "sev|fmt"
+  static std::vector<tel::detail::ArgPack> packs;
   static std::vector<std::string> spans;    // "name|links=N"
   static std::vector<std::size_t> signals;  // payload sizes
   static std::vector<std::string> health;   // "subsystem|state"
@@ -163,9 +164,10 @@ struct FakeSdk {
     b.intern_source = [](std::string_view) { return 7u; };
     b.should_log = [](tel::Severity) noexcept { return true; };
     b.emit_event = [](std::uint32_t, tel::Severity sev, const char* fmt,
-                      const tel::detail::ArgPack&, tel::Context,
+                      const tel::detail::ArgPack& args, tel::Context,
                       tel::Timestamp) noexcept {
       events.push_back(std::to_string(static_cast<int>(sev)) + "|" + fmt);
+      packs.push_back(args);
     };
     b.emit_event_dyn = [](std::uint32_t, tel::Severity sev, const char* msg,
                           std::size_t len, tel::Context,
@@ -201,6 +203,7 @@ tel::detail::GaugeSlot FakeSdk::gauge_slot;
 tel::detail::HistogramSlot FakeSdk::histo_slot;
 tel::detail::SignalSlot FakeSdk::signal_slot;
 std::vector<std::string> FakeSdk::events;
+std::vector<tel::detail::ArgPack> FakeSdk::packs;
 std::vector<std::string> FakeSdk::spans;
 std::vector<std::size_t> FakeSdk::signals;
 std::vector<std::string> FakeSdk::health;
@@ -336,6 +339,24 @@ TEST(TelemetryBinding, PreBindHandlesStayInertButSafe) {
   early.Add(5.0);  // goes to the no-op slot, not the SDK slot
   EXPECT_DOUBLE_EQ(FakeSdk::counter_slot.value.load(), before);
   tel::InstallBinding(nullptr);
+}
+
+// ArgPack bounds: beyond kMaxArgs the extras are DROPPED (count says how
+// many made it); long strings TRUNCATE to the buffer, never overflow.
+TEST_F(TelemetryBoundSeam, ArgPackBoundsAreEnforced) {
+  FakeSdk::packs.clear();
+  XM_WARN("ten args {} {} {} {} {} {} {} {} {} {}", 1, 2, 3, 4, 5, 6, 7, 8, 9,
+          10);
+  ASSERT_EQ(FakeSdk::packs.size(), 1u);
+  EXPECT_EQ(FakeSdk::packs[0].count, tel::detail::ArgPack::kMaxArgs);
+
+  FakeSdk::packs.clear();
+  const std::string big(500, 'x');  // >> kBufBytes
+  XM_WARN("s={}", big);
+  ASSERT_EQ(FakeSdk::packs.size(), 1u);
+  EXPECT_EQ(FakeSdk::packs[0].count, 1u);
+  EXPECT_LE(FakeSdk::packs[0].lens[0], tel::detail::ArgPack::kBufBytes);
+  EXPECT_GT(FakeSdk::packs[0].lens[0], 100u);  // truncated, not dropped
 }
 
 // ---------- deferred-format edge cases ----------------------------------------
