@@ -1,3 +1,5 @@
+> **Status (2026-07-04):** the RT front-end described here is PRIVATE implementation (`src/logging/`, not installed) pending its donation to the xmTelemetry SDK capture channel (P0b); the public logging API is the telemetry `XM_*` macros.
+
 # xmBase Logging — Design
 
 Status: accepted (2026-07). Supersedes the original synchronous spdlog wrapper.
@@ -125,7 +127,7 @@ queued.
 `RtLogger` is SPSC (wait-free) — one producer thread per logger, the common
 control-loop shape. When several threads must log to one hard-RT logger (e.g.
 multiple control loops or sensor callbacks), use **`MpscRtLogger`**
-(`xmbase/logging/rt_logger_mpsc.hpp`). Same `Log()` API and `XLOG_RT_*` macros
+(`src/logging/ (private) rt_logger_mpsc.hpp`). Same `Log()` API and `XLOG_RT_*` macros
 (they only call `.Log()`), so the only change is the type.
 
 It uses a bounded **Vyukov ring**: each cell carries a sequence number; a
