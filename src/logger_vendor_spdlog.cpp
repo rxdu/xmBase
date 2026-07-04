@@ -7,7 +7,7 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#include "xmbase/logging/details/logger_vendor_spdlog.hpp"
+#include "logging/logger_vendor_spdlog.hpp"
 
 #include <chrono>
 
@@ -15,7 +15,7 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-#include "xmbase/logging/details/logging_utils.hpp"
+#include "logging/logging_utils.hpp"
 
 namespace xmotion {
 namespace {

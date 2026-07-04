@@ -28,7 +28,7 @@
 
 #include "gtest/gtest.h"
 
-#include "xmbase/logging/rt_logger_mpsc.hpp"
+#include "logging/rt_logger_mpsc.hpp"
 
 // --- per-thread allocation counter (disabled under sanitizers; see test_rt) --
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
