@@ -215,9 +215,18 @@ struct Binding {
   std::uint32_t (*intern_source)(std::string_view name);  // EventSource id
 
   // hot path (RT-safe by contract)
+  // Runtime level gate: lets call sites (incl. the XLOG stream macros) skip
+  // argument packing / string building for suppressed severities.
+  bool (*should_log)(Severity sev) noexcept;
   void (*emit_event)(std::uint32_t source_id, Severity sev, const char* fmt,
                      const detail::ArgPack& args, Context ctx,
                      Timestamp ts) noexcept;
+  // Pre-formatted / dynamic-string events (the XLOG_*_STREAM path and other
+  // non-literal messages): `msg` need NOT be a string literal — the SDK must
+  // copy it before returning. Non-RT convenience.
+  void (*emit_event_dyn)(std::uint32_t source_id, Severity sev,
+                         const char* msg, std::size_t len, Context ctx,
+                         Timestamp ts) noexcept;
   void (*emit_span)(const char* name, Context ctx, SpanId parent,
                     Timestamp begin, Timestamp end) noexcept;
   void (*emit_signal)(detail::SignalSlot* slot, const void* bytes,
@@ -246,8 +255,20 @@ const Binding* ActiveBinding() noexcept;
 namespace detail {
 void UnboundEmitEvent(const char* source, Severity sev, const char* fmt,
                       const ArgPack& args) noexcept;
+void UnboundEmitEventDyn(const char* source, Severity sev, const char* msg,
+                         std::size_t len) noexcept;
 void UnboundReportHealth(const char* subsystem, HealthState state,
                          const char* detail) noexcept;
+
+// The interim default binding (ADR 0004 §7, pulled into P0a): when xmBase is
+// built with ENABLE_LOGGING, the existing spdlog-backed DefaultLogger is
+// exposed as a Binding so the unified event()/XLOG funnel keeps today's
+// logging behavior until the xmTelemetry SDK replaces it (P0b). Returns
+// nullptr when logging is disabled. ActiveBinding() adopts it lazily unless a
+// binding has been EXPLICITLY installed (incl. explicit nullptr — an explicit
+// unbind, e.g. SDK Shutdown() or a test, is authoritative and disables
+// auto-adoption for the remainder of the process).
+const Binding* DefaultLoggingBinding() noexcept;
 }  // namespace detail
 
 }  // namespace telemetry
