@@ -32,6 +32,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <string_view>
@@ -43,7 +44,8 @@
 namespace xmotion {
 namespace telemetry {
 
-inline constexpr std::uint32_t kBindingAbiVersion = 2;  // 2: span links (D7)
+inline constexpr std::uint32_t kBindingAbiVersion = 3;  // 3: histogram buckets
+                                                        // 2: span links (D7)
 
 // Max span links carried inline by a Scope (OTel span-link analogue): causal
 // associations to OTHER contexts (e.g. the inputs a planning stage consumed)
@@ -91,16 +93,34 @@ struct GaugeSlot {
   void Set(double v) noexcept { value.store(v, std::memory_order_relaxed); }
 };
 
-// P0a layout: count/sum/min/max. Fixed-boundary buckets are added by an ABI
-// bump at P0b (the drain samples these aggregates; ADR 0004 §6).
+// Exponential (power-of-two) histogram buckets: zero-config, unit-agnostic,
+// percentile-capable. Bucket 0 holds v < 1 (incl. 0/negatives/NaN); bucket i
+// in [1, 22] holds 2^(i-1) <= v < 2^i; bucket 23 holds v >= 2^22. BucketOf is
+// one std::ilogb — no loops, no locks, RT-safe.
+inline constexpr std::size_t kHistogramBuckets = 24;
+inline std::size_t HistogramBucketOf(double v) noexcept {
+  if (!(v >= 1.0)) return 0;  // also catches NaN (comparison is false)
+  const int e = std::ilogb(v);  // floor(log2 v), v>=1 => e>=0
+  return static_cast<std::size_t>(e + 1 >= 23 ? 23 : e + 1);
+}
+// Upper bound of a bucket (for percentile estimation): 2^i for i in [0,22].
+inline double HistogramBucketUpperBound(std::size_t i) noexcept {
+  return i >= 23 ? std::numeric_limits<double>::infinity()
+                 : static_cast<double>(1u << i);
+}
+
+// ABI v3 layout: count/sum/min/max + exponential buckets (the drain samples
+// these aggregates; ADR 0004 §6).
 struct HistogramSlot {
   std::atomic<std::uint64_t> count{0};
   std::atomic<double> sum{0.0};
   // Seeded at the identity elements so first-record init needs no coordination.
   std::atomic<double> min{std::numeric_limits<double>::infinity()};
   std::atomic<double> max{-std::numeric_limits<double>::infinity()};
+  std::atomic<std::uint64_t> buckets[kHistogramBuckets] = {};
   void Record(double v) noexcept {
     count.fetch_add(1, std::memory_order_relaxed);
+    buckets[HistogramBucketOf(v)].fetch_add(1, std::memory_order_relaxed);
     double c = sum.load(std::memory_order_relaxed);
     while (!sum.compare_exchange_weak(c, c + v, std::memory_order_relaxed)) {
     }
