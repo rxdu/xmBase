@@ -50,20 +50,17 @@ Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (def
 
 ## Logging
 
-Two front-ends, picked by deadline (format strings use fmt `{}` syntax, not printf):
+One front-end (format strings use fmt `{}` syntax, not printf):
 
 ```cpp
 #include "xmbase/telemetry/telemetry.hpp"  // the one instrumentation header
 XM_INFO("motor speed: {} RPM", speed);
-
-#include "xmbase/logging/rt_logger.hpp"   // hard-RT (lock-free, drop-on-full)
-xmotion::RtLogger rt("ctrl_loop");
-XLOG_RT_INFO(rt, "cycle {} tau={:.3f}", cycle, tau);   // wait-free, no heap/syscall
-rt.Flush();                                            // NON-RT: drain at shutdown
+XM_WARN_STREAM("temp " << t << " C");
 ```
 
-The hard-RT path also honors `XLOG_LEVEL` and can be retargeted at runtime via `rt.SetLevel(...)`.
-See [docs/logging.md](docs/logging.md) for the full contract (drain-thread placement, timestamps).
+A dedicated hard-RT path (the lock-free ring that will become the xmTelemetry SDK's capture
+channel) exists as private implementation under `src/logging/` and is CI-tested; it re-emerges
+through the SDK so that `XM_*` itself is RT-safe. See [docs/logging.md](docs/logging.md).
 
 ### Environment configuration
 

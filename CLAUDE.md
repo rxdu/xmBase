@@ -95,13 +95,12 @@ surface — 4 verbs (`event`/`metric`/`scope`/`signal`) + health, context spine
 machinery lives in the optional xmTelemetry SDK. Unbound fallback: events >= Warn and
 non-Ok health go to stderr; everything else no-ops.
 
-**xmbase/logging/ is transitional (departure map):** every resident leaves xmBase per
-ADR 0004 — `details/`+spdlog backend -> replaced by the SDK ConsoleSink (P0b/P1);
-`rt_logger*` -> its Vyukov ring becomes the SDK capture channel (P0b), then `XLOG_RT_*`
-dissolves into RT-safe `XM_*`; `csv/ctrl/event_logger` (zero consumers) -> DELETED
-(2026-07-04; superseded by `signal()`/`event()` + McapSink). End state: the folder is
-deleted; xmBase = `telemetry/` (API) + `types/` + containers. Do NOT move machinery under
-`xmbase/telemetry/` — that directory is the stateless API tier by definition.
+**No public logging folder.** The public surface is `telemetry/` (API) + `types/` +
+containers. Logging machinery is PRIVATE implementation under `src/logging/` (not
+installed): the spdlog interim backend (replaced by the SDK ConsoleSink at P0b/P1) and
+the RT Vyukov ring + its property tests (donated to the SDK capture channel at P0b, after
+which `XM_*` is itself RT-safe). Do NOT move machinery under `xmbase/telemetry/` — that
+directory is the stateless API tier by definition.
 
 **Logging Module (ONE API with telemetry):**
 - The `XM_*` macros ARE the logging front-end (the former `XLOG_*` spelling was removed — clean break); backed

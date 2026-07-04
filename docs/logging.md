@@ -1,3 +1,5 @@
+> **Status (2026-07-04):** the RT front-end described here is PRIVATE implementation (`src/logging/`, not installed) pending its donation to the xmTelemetry SDK capture channel (P0b); the public logging API is the telemetry `XM_*` macros.
+
 # Logging
 
 Two front-ends, picked by deadline:

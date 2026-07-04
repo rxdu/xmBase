@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "xmbase/logging/details/logger_vendor_spdlog.hpp"
+#include "logging/logger_vendor_spdlog.hpp"
 
 namespace xmotion {
 class DefaultLogger final : public LoggerVendorSpdlog {

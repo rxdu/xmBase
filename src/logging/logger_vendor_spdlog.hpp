@@ -16,7 +16,7 @@
 
 #include "spdlog/spdlog.h"
 
-#include "xmbase/logging/details/logger_interface.hpp"
+#include "logging/logger_interface.hpp"
 
 namespace xmotion {
 class LoggerVendorSpdlog : public LoggerInterface {

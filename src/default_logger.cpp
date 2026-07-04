@@ -7,9 +7,9 @@
  * Copyright (c) 2024 Ruixiang Du (rdu)
  */
 
-#include "xmbase/logging/details/default_logger.hpp"
+#include "logging/default_logger.hpp"
 
-#include "xmbase/logging/details/logging_utils.hpp"
+#include "logging/logging_utils.hpp"
 
 namespace xmotion {
 DefaultLogger &DefaultLogger::GetInstance() {
