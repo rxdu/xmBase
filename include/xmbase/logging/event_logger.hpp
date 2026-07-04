@@ -1,4 +1,10 @@
 /* 
+ *
+ * DEPARTURE NOTICE (ADR 0004): this specialized logger has no in-family
+ * consumers and is superseded by the telemetry verbs — event() with EventSource attribution (P0b).
+ * It is kept functional for external users until that replacement ships,
+ * then deleted. Do not adopt in new code.
+ *
  * event_logger.hpp
  * 
  * Created on: Oct 6, 2016
