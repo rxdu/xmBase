@@ -33,7 +33,7 @@ builds into one CMake target, `xmotion::xmBase`.
 | Path                              | Description                                                                 |
 |-----------------------------------|-----------------------------------------------------------------------------|
 | `include/xmbase/telemetry/`      | the instrumentation API: logging macros (`XM_*`, soft-RT via the event() verb), metric/scope/signal verbs, context spine, binding seam |
-| `include/xmbase/logging/`        | hard-RT logging (`rt_logger` / `rt_logger_mpsc`, `XLOG_RT_*`) plus `csv_logger`, `ctrl_logger`, `event_logger` |
+| `include/xmbase/logging/`        | hard-RT logging (`rt_logger` / `rt_logger_mpsc`, `XLOG_RT_*`) |
 | `include/xmbase/types/`          | header-only common types: `base_types.hpp`, `geometry_types.hpp`            |
 | `src/`                            | spdlog-backed logging implementation (the compiled part)                    |
 

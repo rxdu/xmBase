@@ -113,7 +113,6 @@ if (USE_SYS_SPDLOG)
 endif ()
 
 add_library(xmBase STATIC
-    src/ctrl_logger.cpp
     src/default_logger.cpp
     src/logger_vendor_spdlog.cpp
     src/rt_logger.cpp
