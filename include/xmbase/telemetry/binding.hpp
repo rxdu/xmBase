@@ -43,7 +43,13 @@
 namespace xmotion {
 namespace telemetry {
 
-inline constexpr std::uint32_t kBindingAbiVersion = 1;
+inline constexpr std::uint32_t kBindingAbiVersion = 2;  // 2: span links (D7)
+
+// Max span links carried inline by a Scope (OTel span-link analogue): causal
+// associations to OTHER contexts (e.g. the inputs a planning stage consumed)
+// without reparenting. Links beyond the cap are dropped silently — links are
+// auxiliary metadata, never control flow.
+inline constexpr std::uint8_t kMaxSpanLinks = 4;
 
 // Severity shared by events and the unbound fallback threshold. kOff is a
 // FILTER value only (SetLogLevel(kOff) silences everything) — never an emit
@@ -233,8 +239,11 @@ struct Binding {
   void (*emit_event_dyn)(std::uint32_t source_id, Severity sev,
                          const char* msg, std::size_t len, Context ctx,
                          Timestamp ts) noexcept;
+  // `links` points at up to kMaxSpanLinks contexts causally associated with
+  // this span (D7); valid only for the duration of the call — the SDK copies.
   void (*emit_span)(const char* name, Context ctx, SpanId parent,
-                    Timestamp begin, Timestamp end) noexcept;
+                    Timestamp begin, Timestamp end, const Context* links,
+                    std::uint8_t link_count) noexcept;
   void (*emit_signal)(detail::SignalSlot* slot, const void* bytes,
                       std::size_t size, Timestamp ts) noexcept;
   void (*report_health)(const char* subsystem, HealthState state,

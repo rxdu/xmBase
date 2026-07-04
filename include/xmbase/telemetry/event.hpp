@@ -154,6 +154,17 @@ inline Severity GetLogLevel() noexcept {
                                                  _xm_s.data(), _xm_s.size()); \
     }                                                                         \
   } while (false)
+#define XM_TELEMETRY_DETAIL_STREAM_SRC(src, sev, ...)                         \
+  do {                                                                        \
+    if (::xmotion::telemetry::ShouldLog(::xmotion::telemetry::sev)) {         \
+      std::ostringstream _xm_ss;                                              \
+      _xm_ss << __VA_ARGS__;                                                  \
+      const std::string _xm_s = _xm_ss.str();                                 \
+      ::xmotion::telemetry::detail::EmitEventDyn((src).id(), (src).name(),    \
+                                                 ::xmotion::telemetry::sev,   \
+                                                 _xm_s.data(), _xm_s.size()); \
+    }                                                                         \
+  } while (false)
 
 // Sourceless forms (attribute to the default source).
 #if XM_TELEMETRY_LEVEL <= 0
@@ -202,33 +213,45 @@ inline Severity GetLogLevel() noexcept {
 // Source-attributed forms (delta D8): XM_WARN_SRC(imu_src, "fmt {}", v).
 #if XM_TELEMETRY_LEVEL <= 0
 #define XM_TRACE_SRC(src, ...) XM_TELEMETRY_DETAIL_EVENT(src, Severity::kTrace, __VA_ARGS__)
+#define XM_TRACE_STREAM_SRC(src, ...) XM_TELEMETRY_DETAIL_STREAM_SRC(src, Severity::kTrace, __VA_ARGS__)
 #else
 #define XM_TRACE_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
+#define XM_TRACE_STREAM_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
 #endif
 #if XM_TELEMETRY_LEVEL <= 1
 #define XM_DEBUG_SRC(src, ...) XM_TELEMETRY_DETAIL_EVENT(src, Severity::kDebug, __VA_ARGS__)
+#define XM_DEBUG_STREAM_SRC(src, ...) XM_TELEMETRY_DETAIL_STREAM_SRC(src, Severity::kDebug, __VA_ARGS__)
 #else
 #define XM_DEBUG_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
+#define XM_DEBUG_STREAM_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
 #endif
 #if XM_TELEMETRY_LEVEL <= 2
 #define XM_INFO_SRC(src, ...) XM_TELEMETRY_DETAIL_EVENT(src, Severity::kInfo, __VA_ARGS__)
+#define XM_INFO_STREAM_SRC(src, ...) XM_TELEMETRY_DETAIL_STREAM_SRC(src, Severity::kInfo, __VA_ARGS__)
 #else
 #define XM_INFO_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
+#define XM_INFO_STREAM_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
 #endif
 #if XM_TELEMETRY_LEVEL <= 3
 #define XM_WARN_SRC(src, ...) XM_TELEMETRY_DETAIL_EVENT(src, Severity::kWarn, __VA_ARGS__)
+#define XM_WARN_STREAM_SRC(src, ...) XM_TELEMETRY_DETAIL_STREAM_SRC(src, Severity::kWarn, __VA_ARGS__)
 #else
 #define XM_WARN_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
+#define XM_WARN_STREAM_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
 #endif
 #if XM_TELEMETRY_LEVEL <= 4
 #define XM_ERROR_SRC(src, ...) XM_TELEMETRY_DETAIL_EVENT(src, Severity::kError, __VA_ARGS__)
+#define XM_ERROR_STREAM_SRC(src, ...) XM_TELEMETRY_DETAIL_STREAM_SRC(src, Severity::kError, __VA_ARGS__)
 #else
 #define XM_ERROR_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
+#define XM_ERROR_STREAM_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
 #endif
 #if XM_TELEMETRY_LEVEL <= 5
 #define XM_FATAL_SRC(src, ...) XM_TELEMETRY_DETAIL_EVENT(src, Severity::kFatal, __VA_ARGS__)
+#define XM_FATAL_STREAM_SRC(src, ...) XM_TELEMETRY_DETAIL_STREAM_SRC(src, Severity::kFatal, __VA_ARGS__)
 #else
 #define XM_FATAL_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
+#define XM_FATAL_STREAM_SRC(...) XM_TELEMETRY_DETAIL_NOOP()
 #endif
 
 // Generic form: XM_EVENT(severity-expression, fmt, ...). Takes any Severity
