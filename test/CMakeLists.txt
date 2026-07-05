@@ -10,6 +10,14 @@ add_executable(test_types test_types.cpp)
 target_link_libraries(test_types xmBase gtest gtest_main)
 gtest_discover_tests(test_types)
 
+add_executable(test_event test_event.cpp)
+target_link_libraries(test_event xmBase gtest gtest_main)
+gtest_discover_tests(test_event)
+
+add_executable(test_math_utils test_math_utils.cpp)
+target_link_libraries(test_math_utils xmBase gtest gtest_main)
+gtest_discover_tests(test_math_utils)
+
 add_executable(test_ring_buffer test_ring_buffer.cpp)
 target_link_libraries(test_ring_buffer xmBase gtest gtest_main)
 gtest_discover_tests(test_ring_buffer)
