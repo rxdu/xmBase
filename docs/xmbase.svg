@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="xmBase — Σ — connected hub: nodes on a shared runtime/IPC substrate">
-  <title>xmBase — Σ — connected hub: nodes on a shared runtime/IPC substrate</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="xmBase — connected hub: nodes on a shared runtime/IPC substrate">
+  <title>xmBase — connected hub: nodes on a shared runtime/IPC substrate</title>
   <rect x="6" y="6" width="116" height="116" rx="30" fill="#161B26" stroke="#5E6AD2" stroke-opacity="0.4" stroke-width="2"/>
-  <path d="M36.478515625 95.25 66.306640625 61.6484375 36.478515625 28.181640625H91.59765625V43.095703125H86.072265625V34.3359375H63.1171875L80.99609375 55.44921875L56.37890625 82.76171875H86.072265625V76.29296875H91.59765625V95.25Z" fill="#5E6AD2" opacity="0.100"/>
+  <g transform="translate(0 3)">
   <g stroke="#5E6AD2" stroke-width="3.50" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <path d="M64 60 L40 40 M64 60 L88 40 M64 60 L40 82 M64 60 L88 82"/>
   <rect x="53" y="49" width="22" height="22" rx="5" fill="#161B26"/></g>
@@ -10,4 +10,5 @@
   <circle cx="88" cy="40" r="5"/>
   <circle cx="40" cy="82" r="5"/>
   <circle cx="88" cy="82" r="5"/></g>
+</g>
 </svg>
