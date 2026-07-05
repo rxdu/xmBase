@@ -11,3 +11,18 @@ target_link_libraries(xm_logging_example xmBase)
 
 add_executable(types_example types_example.cpp)
 target_link_libraries(types_example xmBase)
+
+add_executable(instrumented_control_loop_example instrumented_control_loop_example.cpp)
+target_link_libraries(instrumented_control_loop_example xmBase)
+
+add_executable(trace_pipeline_example trace_pipeline_example.cpp)
+target_link_libraries(trace_pipeline_example xmBase)
+
+add_executable(device_health_example device_health_example.cpp)
+target_link_libraries(device_health_example xmBase)
+
+add_executable(custom_binding_example custom_binding_example.cpp)
+target_link_libraries(custom_binding_example xmBase)
+
+add_executable(worker_pool_context_example worker_pool_context_example.cpp)
+target_link_libraries(worker_pool_context_example xmBase)
