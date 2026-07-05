@@ -7,7 +7,7 @@ How to instrument XMotion code with the telemetry API: logging, metrics, traces,
 namespace tel = xmotion::telemetry;
 ```
 
-Companions: [blueprint.md](blueprint.md) (the whole module: tiers, data flow, roadmap) · [reference.md](reference.md) (every symbol + contract) · [design.md](design.md) (why it's shaped this way) · runnable [`examples/`](../../examples/).
+Companions: [reference.md](reference.md) (every symbol + contract) · runnable [`examples/`](../../examples/). The module design documents live with the xmTelemetry SDK.
 
 ## The two rules that matter
 

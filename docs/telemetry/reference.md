@@ -1,6 +1,6 @@
 # xmBase Telemetry — API Reference
 
-Everything below lives in `namespace xmotion::telemetry` (abbreviated `tel::`) unless noted; include `xmbase/telemetry/telemetry.hpp` (the one header) for all of it. Each entry states **RT** (hot-path safety) and **Unbound** (behavior with no SDK bound; see [design.md §3](design.md) for the binding states — note the built-in console binding makes events behave like classic console logging by default).
+Everything below lives in `namespace xmotion::telemetry` (abbreviated `tel::`) unless noted; include `xmbase/telemetry/telemetry.hpp` (the one header) for all of it. Each entry states **RT** (hot-path safety) and **Unbound** (behavior with no SDK bound; binding states: the built-in console binding auto-adopts on first use (events behave like classic console logging); an explicit `InstallBinding` — including `nullptr` — is authoritative).
 
 Conventions that apply everywhere:
 
@@ -83,7 +83,7 @@ Users never touch these; they define what a backend must provide.
 | `kBindingAbiVersion` (currently 3: histogram buckets; 2: span links) | Layout gate; `InstallBinding` rejects mismatches. |
 | `struct Binding` | Function-pointer table: registration entries (`get_counter/gauge/histogram/signal`, `intern_source` — may allocate) and hot-path entries (`should_log`, `set_level/get_level`, `emit_event`, `emit_event_dyn`, `emit_span` (with `links, link_count`), `emit_signal`, `report_health` — must be `noexcept`, allocation-free, wait-free). `set_resource` non-RT. Pointer args (`name`, `fmt`, `links`) are valid only for the call unless documented literal. |
 | `bool InstallBinding(const Binding*) noexcept` | Install/replace; `nullptr` unbinds. **Explicit calls are authoritative**: they disable auto-adoption of the console binding for the rest of the process. Contract for implementers: keep the outgoing table callable until the swap is visible; never free metric slots. |
-| `const Binding* ActiveBinding() noexcept` | The active binding (may lazily adopt the console binding on first use — see design.md §3). |
+| `const Binding* ActiveBinding() noexcept` | The active binding (may lazily adopt the console binding on first use). |
 | `detail::ArgPack` / `detail::CounterSlot/GaugeSlot/HistogramSlot/SignalSlot` | The deferred-format pack and slot layouts the handles write to. |
 | `QosClass { kDiagnostics, kSignal }` | Drop-accounting classes (the SDK guarantees a signal flood can never evict a diagnostic). |
 
