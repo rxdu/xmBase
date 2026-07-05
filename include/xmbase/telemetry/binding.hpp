@@ -295,15 +295,16 @@ void UnboundEmitEventDyn(const char* source, Severity sev, const char* msg,
 void UnboundReportHealth(const char* subsystem, HealthState state,
                          const char* detail) noexcept;
 
-// The interim default binding (ADR 0004 §7, pulled into P0a): when xmBase is
-// built with ENABLE_LOGGING, the existing spdlog-backed DefaultLogger is
-// exposed as a Binding so the unified event()/XLOG funnel keeps today's
-// logging behavior until the xmTelemetry SDK replaces it (P0b). Returns
-// nullptr when logging is disabled. ActiveBinding() adopts it lazily unless a
-// binding has been EXPLICITLY installed (incl. explicit nullptr — an explicit
-// unbind, e.g. SDK Shutdown() or a test, is authoritative and disables
-// auto-adoption for the remainder of the process).
-const Binding* DefaultLoggingBinding() noexcept;
+// The built-in default binding: a dependency-free console sink (full-severity
+// stderr lines, spec-subset formatter, runtime level; see
+// src/telemetry_console_binding.cpp) compiled into xmBase when
+// ENABLE_LOGGING is ON — a lib-only build logs honestly with zero init calls
+// until an application installs the xmTelemetry SDK binding. Returns nullptr
+// when logging is disabled. ActiveBinding() adopts it lazily unless a binding
+// has been EXPLICITLY installed (incl. explicit nullptr — an explicit unbind,
+// e.g. SDK Shutdown() or a test, is authoritative and disables auto-adoption
+// for the remainder of the process).
+const Binding* DefaultConsoleBinding() noexcept;
 }  // namespace detail
 
 }  // namespace telemetry

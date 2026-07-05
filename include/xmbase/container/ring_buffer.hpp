@@ -6,10 +6,10 @@
  * optional overwrite-oldest-on-full policy. Thread-safe for concurrent
  * producer/consumer use via an internal mutex.
  *
- * This is the GENERAL container (byte/stream buffering, bounded queues). For the
- * hard-real-time logging hot path, the logging module has its own specialized
- * lock-free SPSC/MPSC rings (see logging/rt_logger*.hpp) — do not confuse the
- * two: use this one for general buffering, those for wait-free RT logging.
+ * This is the GENERAL container (byte/stream buffering, bounded queues). The
+ * hard-real-time telemetry capture path uses its own specialized lock-free
+ * rings (in the xmTelemetry SDK) — do not confuse the two: use this one for
+ * general buffering, the SDK's for the wait-free RT hot path.
  *
  * Requirements:
  *  1. Capacity N must be a power of two.

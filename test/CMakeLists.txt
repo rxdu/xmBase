@@ -3,19 +3,8 @@
 # Each test links the xmBase library plus gtest_main and is registered with
 # ctest via gtest_discover_tests so `ctest` actually runs them.
 add_executable(test_logging test_logging.cpp)
-target_include_directories(test_logging PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(test_logging xmBase gtest gtest_main)
 gtest_discover_tests(test_logging)
-
-add_executable(test_rt_logger test_rt_logger.cpp)
-target_include_directories(test_rt_logger PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(test_rt_logger xmBase gtest gtest_main)
-gtest_discover_tests(test_rt_logger)
-
-add_executable(test_mpsc_rt_logger test_mpsc_rt_logger.cpp)
-target_include_directories(test_mpsc_rt_logger PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(test_mpsc_rt_logger xmBase gtest gtest_main)
-gtest_discover_tests(test_mpsc_rt_logger)
 
 add_executable(test_types test_types.cpp)
 target_link_libraries(test_types xmBase gtest gtest_main)

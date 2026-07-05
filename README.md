@@ -12,7 +12,7 @@ The substrate every other component plugs into.</p>
 utilities shared across components:
 
 - **Telemetry API** — the stateless XMotion instrumentation surface ([ADR 0004](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md)): four verbs (`event`/`metric`/`scope`/`signal`) + health, callable from a 1 kHz control loop; all machinery lives in the optional [xmTelemetry](https://github.com/rxdu/xmTelemetry) SDK, bound at runtime.
-- **Logging** — **one API with telemetry**: the `XM_*` macros (`XM_INFO`, `XM_WARN_STREAM`, …) ARE the telemetry `event()` verb (the former `XLOG_*` spelling is gone — clean break). Today they are backed by the interim spdlog binding in this repo (async soft-RT, env-var config, log files); when an application links the xmTelemetry SDK, the same call sites flow through its rings/sinks. `XLOG_RT_*` (lock-free hard-RT) remains separate until the SDK absorbs its ring (P0b).
+- **Logging** — **one API with telemetry**: the `XM_*` macros (`XM_INFO`, `XM_WARN_STREAM`, …) ARE the telemetry `event()` verb (the former `XLOG_*` spelling is gone — clean break). They are backed by a built-in, dependency-free console binding (synchronous, thread-safe, `XM_LOG_LEVEL` env config); when an application binds the xmTelemetry SDK, the same call sites gain RT-safe capture, flight recording, and export — with zero code changes.
 - **Common types** — the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation).
 
 > Driver/control interfaces are intentionally **not** here — they belong to their owning
@@ -33,9 +33,8 @@ builds into one CMake target, `xmotion::xmBase`.
 | Path                              | Description                                                                 |
 |-----------------------------------|-----------------------------------------------------------------------------|
 | `include/xmbase/telemetry/`      | the instrumentation API: logging macros (`XM_*`, soft-RT via the event() verb), metric/scope/signal verbs, context spine, binding seam |
-| `include/xmbase/logging/`        | hard-RT logging (`rt_logger` / `rt_logger_mpsc`, `XLOG_RT_*`) |
 | `include/xmbase/types/`          | header-only common types: `base_types.hpp`, `geometry_types.hpp`            |
-| `src/`                            | spdlog-backed logging implementation (the compiled part)                    |
+| `src/`                            | the compiled telemetry bindings (console default + unbound fallback)        |
 
 ## Build
 
@@ -46,7 +45,7 @@ make -j
 ```
 
 Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (default `ON`),
-`USE_SYS_SPDLOG` (use system spdlog, default `ON`).
+
 
 ## Telemetry & logging
 
@@ -66,9 +65,7 @@ through the SDK so that `XM_*` itself is RT-safe. See [docs/logging.md](docs/log
 
 ### Environment configuration
 
-* `XLOG_LEVEL`: 0–6 (0: TRACE, 1: DEBUG, 2: INFO, 3: WARN, 4: ERROR, 5: FATAL, 6: OFF)
-* `XLOG_ENABLE_LOGFILE`: 0 or 1
-* `XLOG_FOLDER`: folder for log files (default `~/.xmotion/log`)
+* `XM_LOG_LEVEL`: 0–6 (0: TRACE, 1: DEBUG, 2: INFO, 3: WARN, 4: ERROR, 5: FATAL, 6: OFF)
 
 ## License
 
