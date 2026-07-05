@@ -64,7 +64,7 @@ inline void SetCurrentContext(Context ctx) noexcept {
 }
 
 // RAII set-and-restore (delta D2): message-driven handlers MUST use this (or
-// Scope) rather than bare SetCurrentContext, or the context leaks into the
+// Span) rather than bare SetCurrentContext, or the context leaks into the
 // next unrelated task on the same thread (the pool-pollution failure mode,
 // scenario S2-A5).
 class ContextGuard {

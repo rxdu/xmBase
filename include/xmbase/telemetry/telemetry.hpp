@@ -8,7 +8,7 @@
  *
  *   event()  — XM_INFO/XM_WARN/... macros, deferred-format records
  *   metric() — GetCounter/GetGauge/GetHistogram handles, atomic updates
- *   scope()  — XM_SCOPE causal timing spans
+ *   scope()  — XM_SPAN causal timing spans
  *   signal() — GetChannel<T>().Publish(), high-rate typed samples
  *   health   — ReportHealth(subsystem, state, detail)
  *
@@ -26,5 +26,5 @@
 #include "xmbase/telemetry/event.hpp"
 #include "xmbase/telemetry/handles.hpp"
 #include "xmbase/telemetry/health.hpp"
-#include "xmbase/telemetry/scope.hpp"
+#include "xmbase/telemetry/span.hpp"
 #include "xmbase/telemetry/time.hpp"

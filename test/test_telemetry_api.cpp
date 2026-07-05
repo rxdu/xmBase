@@ -71,8 +71,8 @@ TEST(TelemetryUnbound, VerbsAreSafeNoops) {
   histo.Record(3.0);
   ch.Publish(Pod{1.0, 2});
   {
-    XM_SCOPE("t.scope");
-    { XM_SCOPE("t.nested"); }
+    XM_SPAN("t.scope");
+    { XM_SPAN("t.nested"); }
   }
   SUCCEED();  // no crash, no output required
 }
@@ -127,12 +127,12 @@ TEST(TelemetryScope, MaintainsNestingEvenUnbound) {
   tel::ContextGuard g(root);
   const tel::SpanId root_span = tel::CurrentContext().span;
   {
-    tel::Scope outer("outer");
+    tel::Span outer("outer");
     const tel::Context in_outer = tel::CurrentContext();
     EXPECT_TRUE(in_outer.trace == root.trace);       // same trace
     EXPECT_FALSE(in_outer.span == root_span);        // new span
     {
-      tel::Scope inner("inner");
+      tel::Span inner("inner");
       EXPECT_FALSE(tel::CurrentContext().span == in_outer.span);
     }
     EXPECT_TRUE(tel::CurrentContext().span == in_outer.span);  // restored
@@ -243,7 +243,7 @@ TEST_F(TelemetryBoundSeam, AllVerbsRouteThroughTheBinding) {
   ASSERT_EQ(FakeSdk::events.size(), 2u);
   EXPECT_EQ(FakeSdk::events[0], "2|bound info {}");
 
-  { XM_SCOPE("b.scope"); }
+  { XM_SPAN("b.scope"); }
   ASSERT_EQ(FakeSdk::spans.size(), 1u);
   EXPECT_EQ(FakeSdk::spans[0], "b.scope|links=0");
 
@@ -281,12 +281,12 @@ TEST_F(TelemetryBoundSeam, SourceAttributedStreamRoutesWithSource) {
 // D7: span links — single (macro), fan-in via AddLink, bounded overflow.
 TEST_F(TelemetryBoundSeam, SpanLinksCarryThroughTheSeam) {
   const tel::Context upstream = tel::NewTrace();
-  { XM_SCOPE_LINKED("b.linked", upstream); }
+  { XM_SPAN_LINKED("b.linked", upstream); }
   ASSERT_EQ(FakeSdk::spans.size(), 1u);
   EXPECT_EQ(FakeSdk::spans[0], "b.linked|links=1");
 
   {
-    tel::Scope gather("b.gather");
+    tel::Span gather("b.gather");
     for (int i = 0; i < 6; ++i) gather.AddLink(tel::NewTrace());  // 6 > cap
     gather.AddLink(tel::Context{});  // invalid: must be ignored
   }
@@ -297,7 +297,7 @@ TEST_F(TelemetryBoundSeam, SpanLinksCarryThroughTheSeam) {
 
 TEST(TelemetryScope, LinksAreSafeUnbound) {
   tel::InstallBinding(nullptr);
-  tel::Scope s("unbound.links");
+  tel::Span s("unbound.links");
   s.AddLink(tel::NewTrace());
   SUCCEED();  // no emit, no crash
 }
