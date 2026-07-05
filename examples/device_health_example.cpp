@@ -1,8 +1,8 @@
 /*
  * device_health_example.cpp
  *
- * REFERENCE USAGE — the device-driver telemetry pattern (mirrors scenario S3;
- * this is exactly how xmDriver's drivers adopt the API): an EventSource per
+ * REFERENCE USAGE — the device-driver telemetry pattern (this is exactly
+ * how xmDriver's drivers adopt the API): an EventSource per
  * device, a freshness-age gauge, health TRANSITIONS with hysteresis (never
  * flapping), and attributed fault events. A monitoring side observes the
  * device purely from telemetry — it never touches the driver object.
@@ -36,7 +36,7 @@ class FakeImuDriver {
 
   // Supervisor tick (non-RT): publish age; report health TRANSITIONS with
   // hysteresis — a state must hold for kHoldTicks before it is reported, so
-  // an age oscillating around the limit never flaps Ok<->Degraded (S3-A5).
+  // an age oscillating around the limit never flaps Ok<->Degraded.
   void Supervise() {
     const auto age = tel::Now().time_since_epoch() -
                      tel::Duration(last_ns_.load(std::memory_order_relaxed));

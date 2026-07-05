@@ -5,7 +5,7 @@
  * pool): the classic way telemetry goes wrong in task-based systems is a
  * context leaking from one task into the next unrelated task that happens to
  * run on the same pool thread ("trace-ID pollution" — the failure mode
- * scenario S2-A5 guards). The rule this example demonstrates:
+ * a classic trace-pollution bug). The rule this example demonstrates:
  *
  *     EVERY task body scopes its context with a ContextGuard built from the
  *     identity carried IN THE TASK (envelope bytes) — never relies on

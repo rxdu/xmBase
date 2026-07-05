@@ -4,13 +4,13 @@
  * REFERENCE USAGE — the BLUEPRINT made executable: a minimal custom Binding
  * (~100 lines, no dependencies) that captures EVERY verb — events, spans WITH
  * links, high-rate signals, health, and metric aggregates — and prints them,
- * demonstrating the full data flow of docs/telemetry/blueprint.md §3 without
+ * demonstrating the full data flow behind the seam (reference.md) without
  * the xmTelemetry SDK. This is also the pattern for special backends (tests,
  * bridges, bare-metal-ish targets).
  *
  * Contract highlights (binding.hpp): emit_* are noexcept and must not block;
  * slot memory is process-lifetime (static here); pointer args are valid only
- * for the call. A real SDK pushes to wait-free rings and drains on its own
+ * for the call. A real backend typically captures asynchronously and processes on its own
  * thread — this demo prints inline for clarity, which is NOT RT-safe.
  *
  * Also demonstrates the D5 pattern: a trajectory publishes per-sample POD
@@ -152,7 +152,7 @@ int main() {
   tel::ReportHealth("demo.planner", tel::HealthState::kOk, "nominal");
 
   // Metric aggregates live in the slots the backend allocated — read at exit
-  // (a real SDK drain samples these periodically instead).
+  // (a real backend samples these periodically instead).
   for (auto& [name, slot] : MiniBackend::counters())
     std::printf("[mini] metric %s = %.0f\n", name.c_str(),
                 slot.value.load(std::memory_order_relaxed));
