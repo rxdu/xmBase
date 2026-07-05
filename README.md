@@ -49,7 +49,7 @@ Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (def
 
 ## Telemetry & logging
 
-Full documentation lives in [`docs/telemetry/`](docs/telemetry/): **[blueprint](docs/telemetry/blueprint.md)** (the whole module: tiers, data flow, roadmap, coverage matrix) · **[guide](docs/telemetry/guide.md)** (how to instrument: logging, metrics, traces, signals, health) · **[reference](docs/telemetry/reference.md)** (every symbol + contract) · **[design](docs/telemetry/design.md)** (the API tier and the binding seam) · **[comparison](docs/telemetry/comparison.md)** (robotics application coverage + OpenTelemetry comparison). Runnable reference examples: the [examples tour](examples/README.md) — hot loop (S1), trace pipeline (S2), worker-pool context discipline (S2-A5), device health (S3), the executable seam/blueprint, logging, types. The executable specification is the [xmTelemetry scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md).
+API documentation lives in [`docs/telemetry/`](docs/telemetry/): **[guide](docs/telemetry/guide.md)** (how to instrument: logging, metrics, traces, signals, health) · **[reference](docs/telemetry/reference.md)** (every symbol + contract). Runnable reference examples: the [examples tour](examples/README.md) — hot loop, trace pipeline, worker-pool context discipline, device health, a complete custom binding, logging, types. The module design documents live with the xmTelemetry SDK (privately maintained — available for production integrations).
 
 One front-end (format strings use fmt `{}` syntax, not printf):
 
