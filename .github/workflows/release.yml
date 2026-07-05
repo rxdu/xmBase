@@ -30,7 +30,6 @@ jobs:
           cmake \
           build-essential \
           libeigen3-dev \
-          libspdlog-dev \
           dpkg-dev
 
     - name: Set version and system info
