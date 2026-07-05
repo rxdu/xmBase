@@ -96,7 +96,7 @@ All code uses the `xmotion` namespace.
 
 ## Logging Configuration
 
-- `XLOG_LEVEL`: runtime log level, seeded once at startup (default: 2) — 0: Trace, 1: Debug, 2: Info, 3: Warn, 4: Error, 5: Fatal, 6: Off; `SetLogLevel()` at runtime.
+- `XM_LOG_LEVEL`: runtime log level, seeded once at startup (default: 2) — 0: Trace, 1: Debug, 2: Info, 3: Warn, 4: Error, 5: Fatal, 6: Off; `SetLogLevel()` at runtime.
 - File logging and structured export are SDK capabilities, not part of the console binding.
 
 **Usage in code** (format strings use `{}` placeholders with the documented spec subset, **not** printf):

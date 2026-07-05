@@ -6,8 +6,8 @@
  * unit test (no assertions); see ../test/test_logging.cpp.
  *
  * Try it with different levels:
- *   XLOG_LEVEL=0 ./xm_logging_example            # show everything (trace+)
- *   XLOG_LEVEL=4 ./xm_logging_example            # errors and worse only
+ *   XM_LOG_LEVEL=0 ./xm_logging_example            # show everything (trace+)
+ *   XM_LOG_LEVEL=4 ./xm_logging_example            # errors and worse only
  *
  * Copyright (c) 2024-2026 Ruixiang Du (rdu)
  */
@@ -29,7 +29,7 @@ int main() {
   // argument expression is only evaluated if the level is enabled.
   XM_DEBUG_STREAM("debug detail: " << "phase=" << 'A' << " count=" << 42);
 
-  // Runtime level control. The initial level comes from $XLOG_LEVEL (default
+  // Runtime level control. The initial level comes from $XM_LOG_LEVEL (default
   // INFO); override it at runtime here.
   XM_INFO("current level = {}", static_cast<int>(xmotion::telemetry::GetLogLevel()));
   xmotion::telemetry::SetLogLevel(xmotion::telemetry::Severity::kWarn);
