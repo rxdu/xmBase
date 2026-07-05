@@ -102,7 +102,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(third_party)
 
 if(XMOTION_WERROR)
-  add_compile_options(-Wall -Wextra -Werror)
+  # -Wmaybe-uninitialized stays a visible warning but does not gate: GCC's
+  # flow analysis has a documented false-positive record inside libstdc++
+  # headers (std::function/std::regex internals under sanitizers + -O).
+  add_compile_options(-Wall -Wextra -Werror -Wno-error=maybe-uninitialized)
 endif()
 
 ## Build the xmBase library from the include/ + src/ layout
