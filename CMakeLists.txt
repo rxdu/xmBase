@@ -24,6 +24,9 @@ option(STATIC_CHECK "Enable static check" OFF)
 option(XMOTION_DEV_MODE "Development mode forces building tests" OFF)
 
 option(ENABLE_LOGGING "Enable the built-in console logging binding" ON)
+# CI hygiene: strict warnings on first-party code (third_party is added
+# before this takes effect and stays untouched).
+option(XMOTION_WERROR "Treat warnings as errors (-Wall -Wextra -Werror)" OFF)
 
 ## Generate symbols for IDE indexer
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -97,6 +100,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 ## Dependent libraries
 add_subdirectory(third_party)
+
+if(XMOTION_WERROR)
+  add_compile_options(-Wall -Wextra -Werror)
+endif()
 
 ## Build the xmBase library from the include/ + src/ layout
 find_package(Eigen3 REQUIRED NO_MODULE)

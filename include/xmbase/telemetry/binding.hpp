@@ -189,8 +189,15 @@ inline void PackStr(ArgPack& p, std::string_view v) noexcept {
 template <typename T>
 void PackOne(ArgPack& p, const T& v) noexcept {
   using D = std::decay_t<T>;
+  using U = std::remove_reference_t<T>;
   if constexpr (std::is_same_v<D, bool>) {
     p.PutRaw(ArgType::kBool, &v, sizeof(bool), 0);
+  } else if constexpr (std::is_array_v<U> &&
+                       std::is_same_v<
+                           std::remove_cv_t<std::remove_extent_t<U>>, char>) {
+    // A char array (string literal): its address can never be null, so no
+    // null check — checking would be provably dead code (-Waddress).
+    PackStr(p, std::string_view(v));
   } else if constexpr (std::is_same_v<D, char*> ||
                        std::is_same_v<D, const char*>) {
     PackStr(p, v == nullptr ? std::string_view("(null)")
