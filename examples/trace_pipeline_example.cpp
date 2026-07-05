@@ -4,8 +4,7 @@
  * REFERENCE USAGE — the canonical trace-propagation pattern from
  * docs/telemetry/guide.md: mint a trace at ingress, scope each stage,
  * carry identity across a thread boundary in a plain message envelope
- * (Inject/Extract), and LINK fan-in inputs to the consuming span (D7).
- * Mirrors scenario S2 of the xmTelemetry suite.
+ * (Inject/Extract), and LINK fan-in inputs to the consuming span.
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
  */

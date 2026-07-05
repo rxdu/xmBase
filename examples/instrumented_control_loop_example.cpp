@@ -2,8 +2,7 @@
  * instrumented_control_loop_example.cpp
  *
  * REFERENCE USAGE — the canonical hot-loop instrumentation pattern (all four
- * verbs + health) from docs/telemetry/guide.md. Mirrors scenario S1 of the
- * xmTelemetry suite (the executable spec); this is the runnable demo form.
+ * verbs + health) from docs/telemetry/guide.md.
  *
  * Pattern: register handles at init; only atomics / ring pushes inside the
  * loop. With no SDK bound (this binary), events go through the built-in console
