@@ -1,7 +1,7 @@
 /*
- * telemetry/scope.hpp
+ * telemetry/span.hpp
  *
- * The scope() verb: RAII causal timing spans. A Scope mints a child span of
+ * The scope() verb: RAII causal timing spans. A Span mints a child span of
  * the calling thread's current context, installs itself as current for its
  * lifetime (so nested scopes parent correctly and events inside it carry its
  * span id), and emits ONE record at destruction ({name, ctx, parent, begin,
@@ -11,8 +11,8 @@
  * Span LINKS (delta D7): a span can carry up to kMaxSpanLinks causal
  * associations to OTHER contexts — e.g. a planning gather stage linking each
  * consumed input's extracted context — without reparenting. Use the
- * Scope(name, link) ctor / XM_SCOPE_LINKED for the single-link case, or a
- * named Scope + AddLink() per input for fan-in.
+ * Span(name, link) ctor / XM_SPAN_LINKED for the single-link case, or a
+ * named Span + AddLink() per input for fan-in.
  *
  * RT cost: two Now() reads, one id generation, one ring push at end; no
  * allocation. `name` must be a string literal. Unbound: context bookkeeping
@@ -30,18 +30,18 @@
 namespace xmotion {
 namespace telemetry {
 
-class Scope {
+class Span {
  public:
-  explicit Scope(const char* name) noexcept
+  explicit Span(const char* name) noexcept
       : name_(name), begin_(Now()), saved_(detail::t_current_context) {
     Begin();
   }
 
-  // Single-link convenience (the XM_SCOPE_LINKED form): causally associate
+  // Single-link convenience (the XM_SPAN_LINKED form): causally associate
   // `link` (e.g. an input's extracted context) with this span — an OTel span
   // LINK, not a parent: the span still nests under the calling thread's
   // current context.
-  Scope(const char* name, Context link) noexcept
+  Span(const char* name, Context link) noexcept
       : name_(name), begin_(Now()), saved_(detail::t_current_context) {
     Begin();
     AddLink(link);
@@ -55,7 +55,7 @@ class Scope {
       links_[link_count_++] = link;
   }
 
-  ~Scope() {
+  ~Span() {
     const Context ctx = detail::t_current_context;
     detail::t_current_context = saved_;  // restore FIRST (exception-free path)
     const Binding* b = ActiveBinding();
@@ -63,8 +63,8 @@ class Scope {
       b->emit_span(name_, ctx, parent_, begin_, Now(), links_, link_count_);
   }
 
-  Scope(const Scope&) = delete;
-  Scope& operator=(const Scope&) = delete;
+  Span(const Span&) = delete;
+  Span& operator=(const Span&) = delete;
 
  private:
   void Begin() noexcept {
@@ -91,26 +91,26 @@ class Scope {
 }  // namespace telemetry
 }  // namespace xmotion
 
-// Unique-named RAII scope for a block: XM_SCOPE("s1.ctrl.cycle");
+// Unique-named RAII scope for a block: XM_SPAN("s1.ctrl.cycle");
 #ifndef XM_TELEMETRY_LEVEL
 #define XM_TELEMETRY_LEVEL 0
 #endif
 #define XM_TELEMETRY_DETAIL_CONCAT2(a, b) a##b
 #define XM_TELEMETRY_DETAIL_CONCAT(a, b) XM_TELEMETRY_DETAIL_CONCAT2(a, b)
 #if XM_TELEMETRY_LEVEL <= 5
-#define XM_SCOPE(name)                                        \
-  ::xmotion::telemetry::Scope XM_TELEMETRY_DETAIL_CONCAT(     \
-      xm_telemetry_scope_, __COUNTER__)(name)
+#define XM_SPAN(name)                                        \
+  ::xmotion::telemetry::Span XM_TELEMETRY_DETAIL_CONCAT(     \
+      xm_telemetry_span_, __COUNTER__)(name)
 // Span with one causal link to another context (D7): the common
 // "stage consumed exactly one upstream input" case.
-#define XM_SCOPE_LINKED(name, link_ctx)                       \
-  ::xmotion::telemetry::Scope XM_TELEMETRY_DETAIL_CONCAT(     \
-      xm_telemetry_scope_, __COUNTER__)((name), (link_ctx))
+#define XM_SPAN_LINKED(name, link_ctx)                       \
+  ::xmotion::telemetry::Span XM_TELEMETRY_DETAIL_CONCAT(     \
+      xm_telemetry_span_, __COUNTER__)((name), (link_ctx))
 #else
-#define XM_SCOPE(name) \
+#define XM_SPAN(name) \
   do {                 \
   } while (false)
-#define XM_SCOPE_LINKED(name, link_ctx) \
+#define XM_SPAN_LINKED(name, link_ctx) \
   do {                                  \
   } while (false)
 #endif

@@ -89,7 +89,7 @@ int main() {
   for (int iter = 1; iter <= 2; ++iter) {
     const tel::Context root = tel::NewTrace();  // one trace per iteration
     tel::ContextGuard g(root);
-    tel::Scope iteration("demo.pool.iteration");
+    tel::Span iteration("demo.pool.iteration");
 
     std::mutex done_m;
     std::condition_variable done_cv;
@@ -104,7 +104,7 @@ int main() {
         // pool thread carries nothing into whatever task runs next.
         tel::ContextGuard task_guard(
             tel::Extract(envelope.data(), envelope.size()));
-        XM_SCOPE("demo.pool.tile");
+        XM_SPAN("demo.pool.tile");
         std::this_thread::sleep_for(std::chrono::milliseconds(2 + t));
         XM_INFO("tile {} of iteration {} done", t, iter);
         std::lock_guard<std::mutex> lk(done_m);
@@ -115,7 +115,7 @@ int main() {
 
     // Fan-in: wait for all tiles, LINK each completed tile's context to the
     // joining span (association, not reparenting — D7).
-    tel::Scope join("demo.pool.join");
+    tel::Span join("demo.pool.join");
     std::unique_lock<std::mutex> lk(done_m);
     done_cv.wait(lk, [&] { return results.size() == kTiles; });
     for (const auto& r : results)
