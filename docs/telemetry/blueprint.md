@@ -30,7 +30,7 @@ Dependency rule: components instrument against the **API only**; applications ch
 
 The free-standing experience is complete and honest:
 
-- **Full-severity console logging** through the built-in binding — dependency-free (libc/libstdc++ only), synchronous, thread-safe, colorized on a tty, `XLOG_LEVEL` env seeding, deferred-format `{}` events rendered with the documented spec subset.
+- **Full-severity console logging** through the built-in binding — dependency-free (libc/libstdc++ only), synchronous, thread-safe, colorized on a tty, `XM_LOG_LEVEL` env seeding, deferred-format `{}` events rendered with the documented spec subset.
 - **Safe everything else** — metric handles, scopes, and signal channels are valid no-ops; handles stay safe to hold for the whole process lifetime.
 - **The seam is yours too** — `binding.hpp` is a public, ABI-gated contract; `examples/custom_binding_example.cpp` shows a complete third-party backend.
 

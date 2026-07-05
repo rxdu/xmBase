@@ -37,7 +37,7 @@ The API↔SDK boundary is an **install-once table of function pointers** (`Bindi
 | State | When | events | metrics | scopes/signals |
 |---|---|---|---|---|
 | silent | explicit `InstallBinding(nullptr)` | ≥ Warn → stderr | no-op slots | no-op |
-| **console binding (built-in, default)** | xmBase built with `ENABLE_LOGGING` (default) — auto-adopted on first use | full-severity console logging, dependency-free (`XLOG_LEVEL` env honored) | no-op slots | no-op |
+| **console binding (built-in, default)** | xmBase built with `ENABLE_LOGGING` (default) — auto-adopted on first use | full-severity console logging, dependency-free (`XM_LOG_LEVEL` env honored) | no-op slots | no-op |
 | SDK bound | app initialized the xmTelemetry SDK | captured per the SDK’s guarantees | sampled + exported | recorded/exported |
 
   An **explicit** `InstallBinding` call — including `nullptr` — is authoritative and disables auto-adoption for the rest of the process.

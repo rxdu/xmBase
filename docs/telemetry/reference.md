@@ -40,7 +40,7 @@ Conventions that apply everywhere:
 | `XM_*_STREAM(expr << ...)` / `XM_*_STREAM_SRC(src, ...)` | Stream-style (ostream `<<`). Gated on the **runtime level before** the stringstream is built — a disabled stream log evaluates none of its arguments. Allocates when enabled ⇒ **non-RT convenience**. |
 | `XM_EVENT(severity_expr, fmt, ...)` | Generic form taking a runtime `Severity` expression; not strippable by the compile floor — prefer the leveled macros. |
 | `bool ShouldLog(Severity) noexcept` | The runtime gate (backend's level; unbound: `sev >= kWarn`). Use to skip expensive message construction. |
-| `SetLogLevel(Severity) / GetLogLevel() noexcept` | Runtime minimum severity (was `XLOG_LEVEL`). Routed to the backend; unbound: set is a no-op, get reports `kWarn`. |
+| `SetLogLevel(Severity) / GetLogLevel() noexcept` | Runtime minimum severity (was `XM_LOG_LEVEL`). Routed to the backend; unbound: set is a no-op, get reports `kWarn`. |
 | `SetResource(string_view key, string_view value)` | Process/robot identity (OTel "resource"); set once at startup. Non-RT. Unbound: no-op. |
 | `XM_TELEMETRY_LEVEL` (macro, define at build) | Compile-time floor: leveled macro call sites strictly below it compile to **nothing** (0=keep all … 6=strip all). Handle-based calls are not macro-strippable; they compile to no-op slot writes instead. |
 

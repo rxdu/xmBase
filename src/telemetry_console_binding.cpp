@@ -23,7 +23,7 @@
  *    atomically written, never read — same contract as the unbound slots);
  *    spans/signals are dropped (the recording plane is the SDK's job);
  *    health transitions log one line (operator-relevant).
- *  - runtime level: one atomic, default Info, seeded once from $XLOG_LEVEL
+ *  - runtime level: one atomic, default Info, seeded once from $XM_LOG_LEVEL
  *    (0..6) for continuity with the documented environment configuration.
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
@@ -56,13 +56,13 @@ namespace {
 
 // ---- runtime level ----------------------------------------------------------
 
-// One atomic minimum severity; default Info. Seeded from $XLOG_LEVEL (0..6)
+// One atomic minimum severity; default Info. Seeded from $XM_LOG_LEVEL (0..6)
 // exactly once, when the binding table is first materialized.
 std::atomic<std::uint8_t> g_level{
     static_cast<std::uint8_t>(Severity::kInfo)};
 
 Severity LevelFromEnv(Severity fallback) noexcept {
-  const char* value = std::getenv("XLOG_LEVEL");
+  const char* value = std::getenv("XM_LOG_LEVEL");
   if (value == nullptr || value[0] == '\0') return fallback;
   char* end = nullptr;
   const long level = std::strtol(value, &end, 10);

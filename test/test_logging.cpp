@@ -116,7 +116,7 @@ TEST(ConsoleBindingTest, DisabledBuildAdoptsNoBinding) {
 
 TEST(ConsoleBindingTest, InfoVisibleByDefaultDebugSuppressed) {
   // Must run against the freshly adopted binding with no level override.
-  unsetenv("XLOG_LEVEL");
+  unsetenv("XM_LOG_LEVEL");
   const std::string out = CaptureLines([] {
     XM_INFO("default level check {}", 1);
     XM_DEBUG("must not appear {}", 2);

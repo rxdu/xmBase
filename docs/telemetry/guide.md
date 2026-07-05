@@ -19,10 +19,10 @@ Companions: [blueprint.md](blueprint.md) (the whole module: tiers, data flow, ro
 ```cpp
 XM_INFO("motor {} spun up at {:.2f} A", id, amps);   // fmt {} syntax, full spec support
 XM_WARN_STREAM("pose " << pose);                     // ostream form (non-RT; lazily gated)
-tel::SetLogLevel(tel::Severity::kDebug);             // runtime level (was XLOG_LEVEL)
+tel::SetLogLevel(tel::Severity::kDebug);             // runtime level (was XM_LOG_LEVEL)
 ```
 
-Migration from `XLOG_*` is mechanical: `XLOG_` → `XM_`; `XLOG_LEVEL(x)` → `tel::SetLogLevel(...)`; compile floor `XMBASE_ACTIVE_LEVEL` → `XM_TELEMETRY_LEVEL`. Console behavior is preserved by the built-in dependency-free binding (`XLOG_LEVEL` env honored; file logging moved to the SDK recording plane).
+Migration from `XLOG_*` is mechanical: `XLOG_` → `XM_`; `XM_LOG_LEVEL(x)` → `tel::SetLogLevel(...)`; compile floor `XMBASE_ACTIVE_LEVEL` → `XM_TELEMETRY_LEVEL`. Console behavior is preserved by the built-in dependency-free binding (`XM_LOG_LEVEL` env honored; file logging moved to the SDK recording plane).
 
 **Attribute your subsystem** — one tag per driver/module, so events are filterable per-device downstream:
 
