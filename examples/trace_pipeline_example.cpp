@@ -47,7 +47,7 @@ class Queue {
 // Producer thread: works UNDER the iteration's trace, ships its context.
 void ProduceInput(tel::Context root, int kind, const char* name, Queue& out) {
   tel::ContextGuard g(root);              // set + auto-restore (never bare Set)
-  XM_SCOPE(name);                          // e.g. "demo.input.pose" — child span
+  XM_SPAN(name);                          // e.g. "demo.input.pose" — child span
   std::this_thread::sleep_for(std::chrono::milliseconds(2));
   out.Push(Envelope{tel::Inject(tel::CurrentContext()), kind});
 }
@@ -65,11 +65,11 @@ int main() {
 
   {
     tel::ContextGuard g(root);
-    XM_SCOPE("demo.plan.iteration");
+    XM_SPAN("demo.plan.iteration");
 
     {
       // Fan-in: LINK each consumed input's context (association, not parent).
-      tel::Scope gather("demo.plan.gather_inputs");
+      tel::Span gather("demo.plan.gather_inputs");
       int got = 0;
       while (got < 3) {
         if (auto e = q.Pop()) {
@@ -82,7 +82,7 @@ int main() {
       }
     }
     {
-      XM_SCOPE_LINKED("demo.plan.search", root);  // single-link shorthand form
+      XM_SPAN_LINKED("demo.plan.search", root);  // single-link shorthand form
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
       XM_INFO("search done under trace {:x}{:x}",
               tel::CurrentContext().trace.hi, tel::CurrentContext().trace.lo);

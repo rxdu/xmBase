@@ -55,7 +55,7 @@ The API↔SDK boundary is an **install-once table of function pointers** (`Bindi
 | `counter.Add()` / `gauge.Set()` / `histogram.Record()` | relaxed atomic op(s) on a fixed slot; no binding load |
 | `XM_INFO(...)` (below runtime level) | one binding load + one `should_log` call — args not even packed |
 | `XM_INFO(...)` (enabled) | arg copy into a ≤160 B stack pack + one seam call |
-| `XM_SCOPE` | 2× `Now()` + 1 id generation + 1 seam call at destruction |
+| `XM_SPAN` | 2× `Now()` + 1 id generation + 1 seam call at destruction |
 | `channel.Publish(pod)` | one seam call with a ≤`kMaxSignalPayload` byte copy |
 | anything, silenced (`InstallBinding(nullptr)`) | the same minus the seam call (stderr only for Warn+/faults) |
 

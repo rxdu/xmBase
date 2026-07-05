@@ -71,9 +71,9 @@ Mint one trace per unit of work at **ingress**; scope each **stage**; carry iden
 tel::ContextGuard g(tel::NewTrace());        // set + auto-restore; NEVER bare SetCurrentContext
 
 {
-  XM_SCOPE("plan.iteration");                // spans auto-nest; events inside carry span identity
-  { XM_SCOPE("plan.global_search"); ... }
-  { XM_SCOPE("plan.traj_generate"); ... }
+  XM_SPAN("plan.iteration");                // spans auto-nest; events inside carry span identity
+  { XM_SPAN("plan.global_search"); ... }
+  { XM_SPAN("plan.traj_generate"); ... }
 }
 ```
 
@@ -87,9 +87,9 @@ tel::ContextGuard g(tel::Extract(msg.ctx.data(), msg.ctx.size()));  // consumer 
 Fan-in stages **link** their inputs instead of reparenting (an OTel span link — "consumed", not "caused by"):
 
 ```cpp
-tel::Scope gather("plan.gather_inputs");
+tel::Span gather("plan.gather_inputs");
 for (auto& in : inputs) gather.AddLink(tel::Extract(in.ctx.data(), in.ctx.size()));
-// single-input shorthand: XM_SCOPE_LINKED("stage", upstream_ctx);
+// single-input shorthand: XM_SPAN_LINKED("stage", upstream_ctx);
 ```
 
 ## Signals (high-rate recording)
@@ -133,6 +133,6 @@ Rule of thumb: **libraries instrument, applications bind.** A library never call
 ## RT checklist (control loops)
 
 - ✅ handles + `EventSource` acquired before the loop starts
-- ✅ only `Add`/`Set`/`Record`/`Publish`/`XM_*` (fmt form)/`XM_SCOPE` inside the loop
+- ✅ only `Add`/`Set`/`Record`/`Publish`/`XM_*` (fmt form)/`XM_SPAN` inside the loop
 - ❌ no `Get*` / `NewTrace` / `_STREAM` forms / string building on the hot path
 - ✅ dynamic strings pre-truncate: event args cap at 8 args / 160 B pack (see reference.md)

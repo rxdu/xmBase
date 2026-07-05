@@ -137,10 +137,10 @@ int main() {
   const tel::Context upstream = tel::NewTrace();
   {
     tel::ContextGuard g(tel::NewTrace());
-    tel::Scope plan("demo.plan.iteration");
+    tel::Span plan("demo.plan.iteration");
     plan.AddLink(upstream);                       // span LINK (D7)
     {
-      XM_SCOPE("demo.plan.generate");
+      XM_SPAN("demo.plan.generate");
       for (std::uint32_t i = 0; i < 3; ++i) {     // D5: per-sample publish
         traj.Publish(TrajPoint{i, 0.1 * i, 0.2 * i, 1.0});
         cycles.Add();
