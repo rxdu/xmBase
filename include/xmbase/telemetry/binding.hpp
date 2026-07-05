@@ -47,7 +47,7 @@ namespace telemetry {
 inline constexpr std::uint32_t kBindingAbiVersion = 3;  // 3: histogram buckets
                                                         // 2: span links (D7)
 
-// Max span links carried inline by a Scope (OTel span-link analogue): causal
+// Max span links carried inline by a Span (OTel span-link analogue): causal
 // associations to OTHER contexts (e.g. the inputs a planning stage consumed)
 // without reparenting. Links beyond the cap are dropped silently — links are
 // auxiliary metadata, never control flow.

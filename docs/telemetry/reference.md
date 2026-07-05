@@ -57,15 +57,15 @@ Value-type handles over slots fixed at registration. **Register at init, use on 
 
 All metric ops: RT yes, `noexcept`, no binding lookup per call. `Get*` may allocate (registration) — never call in a loop.
 
-## Traces (`scope.hpp`)
+## Traces (`span.hpp`)
 
 | Symbol | Description |
 |---|---|
-| `class Scope` | RAII span: mints a child span of the current context, installs itself as current (nested scopes parent correctly; events inside carry its span id), emits ONE record at destruction `{name, ctx, parent, begin, end, links}`. Orphan scopes (no enclosing trace) self-root. Non-copyable. RT: yes (2× `Now()` + id + one seam call). Unbound: context bookkeeping still runs; nothing emitted. |
-| `Scope(const char* name)` / `Scope(name, Context link)` | Plain / single-link constructors. |
-| `void Scope::AddLink(Context) noexcept` | Causally associate another context (OTel span **link** — association, not reparenting). Bounded by `kMaxSpanLinks` (4); overflow and invalid contexts are silently dropped (links are metadata, never control flow). Use for fan-in: one `AddLink` per consumed input. |
-| `XM_SCOPE(name)` | Block-scoped anonymous span. |
-| `XM_SCOPE_LINKED(name, ctx)` | Block-scoped span with one link — the "stage consumed exactly one upstream input" case. |
+| `class Span` | RAII span: mints a child span of the current context, installs itself as current (nested scopes parent correctly; events inside carry its span id), emits ONE record at destruction `{name, ctx, parent, begin, end, links}`. Orphan scopes (no enclosing trace) self-root. Non-copyable. RT: yes (2× `Now()` + id + one seam call). Unbound: context bookkeeping still runs; nothing emitted. |
+| `Span(const char* name)` / `Span(name, Context link)` | Plain / single-link constructors. |
+| `void Span::AddLink(Context) noexcept` | Causally associate another context (OTel span **link** — association, not reparenting). Bounded by `kMaxSpanLinks` (4); overflow and invalid contexts are silently dropped (links are metadata, never control flow). Use for fan-in: one `AddLink` per consumed input. |
+| `XM_SPAN(name)` | Block-scoped anonymous span. |
+| `XM_SPAN_LINKED(name, ctx)` | Block-scoped span with one link — the "stage consumed exactly one upstream input" case. |
 
 ## Health (`health.hpp`)
 

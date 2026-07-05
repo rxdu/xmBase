@@ -13,7 +13,7 @@ Companions: [design.md](design.md) (API-tier design) · [reference.md](reference
 ┌────────────── API  (xmBase, include/xmbase/telemetry/) ──────────────────┐
 │  event()   XM_*[_SRC][_STREAM]      — deferred-format ArgPack            │
 │  metric()  Counter/Gauge/Histogram  — atomics on registration-fixed slots│
-│  scope()   XM_SCOPE / AddLink       — RAII spans, nesting, span links    │
+│  scope()   XM_SPAN / AddLink       — RAII spans, nesting, span links    │
 │  signal()  SignalChannel<T>         — fixed-size POD samples             │
 │  health()  ReportHealth             — transition convention              │
 │  context spine: NewTrace · ContextGuard · Inject/Extract   ONE clock     │

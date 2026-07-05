@@ -42,7 +42,7 @@ class Controller {
 
   // The hot path: noexcept, allocation-free — atomics and bounded copies only.
   void Step(double setpoint, tel::Timestamp deadline) {
-    XM_SCOPE("demo.ctrl.cycle");  // span: cycle timing, auto-nested
+    XM_SPAN("demo.ctrl.cycle");  // span: cycle timing, auto-nested
 
     const double measured = plant_ += 0.2 * (command_ - plant_);
     command_ = 2.0 * (setpoint - measured);
