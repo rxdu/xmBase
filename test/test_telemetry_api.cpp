@@ -20,7 +20,7 @@ namespace tel = xmotion::telemetry;
 
 namespace {
 
-// NOTE: xmBase auto-adopts the interim spdlog logging binding on first use
+// NOTE: xmBase auto-adopts the built-in console binding on first use
 // (ENABLE_LOGGING builds). Tests of the TRUE unbound contract pin it with an
 // explicit InstallBinding(nullptr) — an explicit unbind is authoritative and
 // disables auto-adoption (see binding.hpp).

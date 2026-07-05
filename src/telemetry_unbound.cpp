@@ -137,11 +137,10 @@ bool InstallBinding(const Binding* binding) noexcept {
 const Binding* ActiveBinding() noexcept {
   const Binding* b = g_binding.load(std::memory_order_acquire);
   if (b == nullptr && !g_explicitly_set.load(std::memory_order_relaxed)) {
-    // Lazily adopt the interim spdlog-backed logging binding (ADR 0004 §7):
-    // XLOG_*/XM_* keep today's logging behavior with zero init calls until
-    // the xmTelemetry SDK installs the real machinery. CAS so a concurrent
-    // explicit InstallBinding wins.
-    const Binding* def = detail::DefaultLoggingBinding();
+    // Lazily adopt the built-in console binding: XM_* logs to stderr with
+    // zero init calls until the xmTelemetry SDK installs the real machinery.
+    // CAS so a concurrent explicit InstallBinding wins.
+    const Binding* def = detail::DefaultConsoleBinding();
     if (def != nullptr) {
       const Binding* expected = nullptr;
       g_binding.compare_exchange_strong(expected, def,

@@ -23,13 +23,7 @@ option(BUILD_EXAMPLES "Build examples" OFF)
 option(STATIC_CHECK "Enable static check" OFF)
 option(XMOTION_DEV_MODE "Development mode forces building tests" OFF)
 
-option(ENABLE_LOGGING "Enable logging" ON)
-option(USE_SYS_SPDLOG "Use system spdlog" ON)
-
-if (DEFINED ENV{ROS_DISTRO} AND "$ENV{ROS_DISTRO}" STREQUAL "humble")
-  message(STATUS "ROS_DISTRO is $ENV{ROS_DISTRO}, use system spdlog")
-  set(USE_SYS_SPDLOG ON)
-endif ()
+option(ENABLE_LOGGING "Enable the built-in console logging binding" ON)
 
 ## Generate symbols for IDE indexer
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -82,11 +76,10 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif ()
 
 if (ENABLE_LOGGING)
-  message("-- Enable logging with spdlog -- Yes")
-  message("-- Default log file storage location: ~/.xmotion/log")
-else (ENABLE_LOGGING)
-  message("-- Disable logging with spdlog")
-endif (ENABLE_LOGGING)
+  message(STATUS "Console logging (telemetry default binding): enabled")
+else ()
+  message(STATUS "Console logging (telemetry default binding): disabled")
+endif ()
 
 ## Enable test if requested
 if (((NOT BUILD_AS_MODULE) AND BUILD_TESTING) OR XMOTION_DEV_MODE)
@@ -108,43 +101,20 @@ add_subdirectory(third_party)
 ## Build the xmBase library from the include/ + src/ layout
 find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
-if (USE_SYS_SPDLOG)
-  find_package(spdlog REQUIRED)
-endif ()
 
 add_library(xmBase STATIC
-    src/default_logger.cpp
-    src/logger_vendor_spdlog.cpp
-    src/rt_logger.cpp
-    src/rt_logger_mpsc.cpp
     src/telemetry_unbound.cpp
-    src/telemetry_logging_binding.cpp)
+    src/telemetry_console_binding.cpp)
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-# Private implementation headers (src/logging/): the spdlog interim backend and
-# the RT ring (SDK donor) — NOT installed; they leave xmBase at P0b/P1.
-target_include_directories(xmBase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(xmBase PUBLIC Eigen3::Eigen Threads::Threads)
 if (ENABLE_LOGGING)
   target_compile_definitions(xmBase PUBLIC ENABLE_LOGGING)
 endif ()
-# When spdlog is bundled (USE_SYS_SPDLOG=OFF) the xmBase target links the
-# in-tree spdlog target, so it must travel in the same export set — otherwise
-# install(EXPORT) errors that spdlog is referenced but not exported. With system
-# spdlog the link is an imported target and needs no exporting.
-if (USE_SYS_SPDLOG)
-  target_link_libraries(xmBase PUBLIC spdlog::spdlog)
-else ()
-  set(_xmbase_install_targets xmBase spdlog)
-  target_link_libraries(xmBase PUBLIC spdlog)
-endif ()
-if (NOT DEFINED _xmbase_install_targets)
-  set(_xmbase_install_targets xmBase)
-endif ()
 add_library(xmotion::xmBase ALIAS xmBase)
 
-install(TARGETS ${_xmbase_install_targets} EXPORT xmBaseTargets
+install(TARGETS xmBase EXPORT xmBaseTargets
     LIBRARY DESTINATION lib ARCHIVE DESTINATION lib RUNTIME DESTINATION bin
     INCLUDES DESTINATION include)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -204,9 +174,6 @@ set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/xmotion")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 # set(CPACK_DEBIAN_PACKAGE_DEPENDS "abc (>= 0.1.2), xyz (<< 0.3.4)")
-if (USE_SYS_SPDLOG)
-  set(CPACK_DEBIAN_PACKAGE_DEPENDS "libspdlog-dev")
-endif ()
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Ruixiang Du (ruixiang.du@gmail.com)")

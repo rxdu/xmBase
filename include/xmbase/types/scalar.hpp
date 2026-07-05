@@ -2,7 +2,7 @@
  * scalar.hpp
  *
  * Fundamental scalar aliases shared across the xMotion family. Dependency-free
- * (no Eigen, no spdlog) so the lowest layers — including wire/driver structs —
+ * (no Eigen, no logging machinery) so the lowest layers — including wire/driver structs —
  * can use them without pulling in heavy headers.
  *
  * Copyright (c) 2021-2026 Ruixiang Du (rdu)

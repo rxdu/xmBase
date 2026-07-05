@@ -6,7 +6,7 @@
  * xmTelemetry suite (the executable spec); this is the runnable demo form.
  *
  * Pattern: register handles at init; only atomics / ring pushes inside the
- * loop. With no SDK bound (this binary), events go through the interim spdlog
+ * loop. With no SDK bound (this binary), events go through the built-in console
  * binding; metrics aggregate in-slot; scope/signal records are dropped until
  * an application binds the xmTelemetry SDK — the CALL SITES never change.
  *
