@@ -27,7 +27,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{runner.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DXMOTION_WERROR=ON
       - name: Build
         working-directory: ${{runner.workspace}}/build
         shell: bash
@@ -51,7 +51,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{runner.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTING=ON
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DXMOTION_WERROR=ON
       - name: Build
         working-directory: ${{runner.workspace}}/build
         shell: bash
@@ -90,7 +90,7 @@ jobs:
       - name: Configure
         shell: bash
         run: >
-          cmake -S . -B build -DBUILD_TESTING=ON -DXMOTION_DEV_MODE=ON
+          cmake -S . -B build -DBUILD_TESTING=ON -DXMOTION_DEV_MODE=ON -DXMOTION_WERROR=ON
           -DCMAKE_CXX_FLAGS="${{ matrix.flags }}"
           -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
       - name: Build

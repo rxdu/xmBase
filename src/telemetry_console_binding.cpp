@@ -429,8 +429,10 @@ const char* ProcessName() noexcept {
     if (n > 0) {
       path[n] = '\0';
       const char* base = std::strrchr(path, '/');
-      std::snprintf(name, sizeof name, "%s", base != nullptr ? base + 1
-                                                             : path);
+      // %.63s: truncation to the 64-byte buffer is intended (and makes the
+      // bound explicit, so -Wformat-truncation stays quiet).
+      std::snprintf(name, sizeof name, "%.63s",
+                    base != nullptr ? base + 1 : path);
       return;
     }
 #endif
