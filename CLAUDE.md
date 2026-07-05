@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 xmBase is the foundation library of the XMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
-- **Logging utilities**: spdlog-based logging system with environment variable configuration
+- **Telemetry API + logging**: the stateless XMotion instrumentation surface (`xmbase/telemetry/`) with a built-in dependency-free console binding — the `XM_*` macros are both the logging front-end and the telemetry `event()` verb
 - **Common types**: the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation)
 
 It is exposed as a **single** CMake target, `xmotion::xmBase`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmDriver, xmNavigation), not here.
@@ -38,15 +38,14 @@ cmake .. -DXMOTION_DEV_MODE=ON
 **Run a single test** (tests are gtest, discovered by ctest):
 ```bash
 cmake --build .
-ctest -R XLoggerTest --output-on-failure
+ctest -R ConsoleBinding --output-on-failure
 ```
 
 ### CMake Options
 
 - `BUILD_TESTING`: Build tests (default: OFF)
 - `XMOTION_DEV_MODE`: Development mode, forces building tests (default: OFF)
-- `ENABLE_LOGGING`: Enable spdlog logging (default: ON)
-- `USE_SYS_SPDLOG`: Use system spdlog instead of bundled (default: ON)
+- `ENABLE_LOGGING`: Compile the built-in console binding (default: ON; OFF = no binding auto-adopts)
 - `STATIC_CHECK`: Enable cppcheck static analysis (default: OFF)
 
 ### Dependencies
@@ -55,26 +54,21 @@ ctest -R XLoggerTest --output-on-failure
 - CMake >= 3.10.2
 - C++17 compiler
 - Eigen3
-- libspdlog-dev (if USE_SYS_SPDLOG=ON)
 
 **Install on Ubuntu:**
 ```bash
-sudo apt-get install libeigen3-dev libspdlog-dev
+sudo apt-get install libeigen3-dev
 ```
+
+There are no other third-party runtime dependencies — the console binding is libc/libstdc++ only.
 
 ## Architecture
 
 ### Module Structure
 
-Everything compiles into one target, `xmotion::xmBase`. Headers live under
-`include/xmbase/`; the compiled logging sources under `src/`.
+Everything compiles into one target, `xmotion::xmBase`. Headers live under `include/xmbase/`; the compiled telemetry bindings under `src/`.
 
-1. **logging/** (`include/xmbase/logging/`): logging front-ends; the spdlog-backed
-   implementation is the compiled part under `src/`.
-   - `xmbase/telemetry/event.hpp`: the logging macros (`XM_INFO`, `XM_DEBUG`, …; stream-style `XM_*_STREAM`) — the telemetry event() verb, interim spdlog backend. fmt `{}` syntax.
-   - `rt_logger.hpp` / `rt_logger_mpsc.hpp`: hard-RT macros (`XLOG_RT_*`) — lock-free, allocation-free `RtLogger` (single-producer) and `MpscRtLogger` (multi-producer).
-   - (specialized csv/ctrl/event loggers were removed — use the telemetry verbs.)
-
+1. **telemetry/** (`include/xmbase/telemetry/`): the stateless XMotion instrumentation surface (ADR 0004) — 4 verbs (`event`/`metric`/`scope`/`signal`) + health, context spine (TraceId/Context/NewTrace/Inject/Extract), install-once binding seam (`binding.hpp`). Compiled parts: `src/telemetry_unbound.cpp` (fallback + adoption latch) and `src/telemetry_console_binding.cpp` (the built-in dependency-free console binding, auto-adopted by default).
 2. **types/** (`include/xmbase/types/`): Header-only common type vocabulary (namespace `xmotion`)
    - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
    - `types.hpp`: umbrella that pulls in all of the above.
@@ -86,35 +80,15 @@ Everything compiles into one target, `xmotion::xmBase`. Headers live under
 ### Key Design Patterns
 
 **Single-target foundation:**
-- `xmBase` is one STATIC library aggregating logging + the common types; consumers `find_package(xmBase)` and link `xmotion::xmBase`.
-- There are intentionally no driver/control interfaces here — they belong to xmDriver's HAL (`xmmu/hal/`). Keeping xmBase free of upper-layer specifics is a load-bearing design rule, not an accident.
+- `xmBase` is one STATIC library aggregating the telemetry API + the common types; consumers `find_package(xmBase)` and link `xmotion::xmBase`.
+- There are intentionally no driver/control interfaces here — they belong to xmDriver's HAL. Keeping xmBase free of upper-layer specifics is a load-bearing design rule, not an accident.
 
-**Telemetry API (xmbase/telemetry/, ADR 0004):** the stateless XMotion instrumentation
-surface — 4 verbs (`event`/`metric`/`scope`/`signal`) + health, context spine
-(TraceId/Context/NewTrace/Inject/Extract), install-once binding seam (`binding.hpp`). All
-machinery lives in the optional xmTelemetry SDK. Unbound fallback: events >= Warn and
-non-Ok health go to stderr; everything else no-ops.
+**Telemetry API (xmbase/telemetry/, ADR 0004):** components instrument against this API only; the runtime machinery lives in the optional (privately maintained) xmTelemetry SDK, bound through the install-once seam. Binding states: console binding auto-adopted by default (full-severity console logging, dependency-free); explicit `InstallBinding` — including `nullptr` — is authoritative and disables auto-adoption; with no binding, events ≥ Warn and non-Ok health go to stderr, everything else no-ops. Do NOT put machinery under `xmbase/telemetry/` — that directory is the stateless API tier by definition. **Never document SDK internals in this repo** — public docs describe the API and the SDK's guarantees, not its mechanisms.
 
-**No public logging folder.** The public surface is `telemetry/` (API) + `types/` +
-containers. Logging machinery is PRIVATE implementation under `src/logging/` (not
-installed): the spdlog interim backend (replaced by the SDK ConsoleSink at P0b/P1) and
-the RT Vyukov ring + its property tests (donated to the SDK capture channel at P0b, after
-which `XM_*` is itself RT-safe). Do NOT move machinery under `xmbase/telemetry/` — that
-directory is the stateless API tier by definition.
-
-**Logging Module (ONE API with telemetry):**
-- The `XM_*` macros ARE the logging front-end (the former `XLOG_*` spelling was removed — clean break); backed
-  today by the interim spdlog binding (`src/telemetry_logging_binding.cpp`), replaced
-  wholesale when an application installs the xmTelemetry SDK binding.
-- Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the
-  compile-time `XMBASE_ACTIVE_LEVEL` floor strips below-floor call sites entirely.
-- **Soft-RT default (`XM_*`):** async spdlog (caller formats + enqueues, a worker thread
-  does the I/O); a full queue drops the oldest record rather than blocking. Singleton
-  `DefaultLogger`. Use for everything without a hard deadline.
-- **Hard-RT (`XLOG_RT_*`):** a per-loop `RtLogger`/`MpscRtLogger` over a lock-free ring drained
-  by a background thread — wait-free/lock-free, no heap, no syscall, never blocks; a full ring
-  drops the newest record and bumps `dropped()`. Honors `XLOG_LEVEL`; `SetLevel()` at runtime.
-- Environment variable configuration (see below); thread-safe with spdlog backend.
+**Logging (ONE API with telemetry):**
+- The `XM_*` macros ARE the logging front-end (the former `XLOG_*` spelling was removed — clean break), rendered by the console binding by default and captured by the SDK when bound.
+- Macro-based logging API that compiles out when `ENABLE_LOGGING` is disabled; the compile-time `XM_TELEMETRY_LEVEL` floor strips below-floor call sites entirely.
+- The console binding is synchronous and thread-safe (whole lines, never torn), colorized on a tty.
 
 ### Namespace Convention
 
@@ -122,31 +96,15 @@ All code uses the `xmotion` namespace.
 
 ## Logging Configuration
 
-The logging system is controlled via environment variables:
+- `XLOG_LEVEL`: runtime log level, seeded once at startup (default: 2) — 0: Trace, 1: Debug, 2: Info, 3: Warn, 4: Error, 5: Fatal, 6: Off; `SetLogLevel()` at runtime.
+- File logging and structured export are SDK capabilities, not part of the console binding.
 
-- `XLOG_LEVEL`: Log level (default: 2)
-  - 0: Trace, 1: Debug, 2: Info, 3: Warn, 4: Error, 5: Fatal, 6: Off
-- `XLOG_ENABLE_LOGFILE`: Enable file logging (TRUE/true/1 to enable, default: false)
-- `XLOG_FOLDER`: Log file directory (default: ~/.xmotion/log)
-
-**Usage in code** (format strings use fmt `{}` syntax, **not** printf):
+**Usage in code** (format strings use `{}` placeholders with the documented spec subset, **not** printf):
 ```cpp
 #include "xmbase/telemetry/telemetry.hpp"
 
-// fmt-style (soft-RT, async)
 XM_INFO("Motor speed: {} RPM", speed);
-
-// Stream-style
-XM_DEBUG_STREAM("Position: " << x << ", " << y);
-```
-
-For a hard-real-time loop, use the `XLOG_RT_*` front-end instead:
-```cpp
-#include "xmbase/logging/rt_logger.hpp"
-
-xmotion::RtLogger rt("ctrl_loop");          // one logger owned by the loop
-XLOG_RT_INFO(rt, "cycle {} tau={:.3f}", cycle, tau);  // wait-free, no heap/syscall
-rt.Flush();                                 // NON-RT: drain before exit/shutdown
+XM_DEBUG_STREAM("Position: " << x << ", " << y);   // non-RT convenience
 ```
 
 **Important:** Do not make logging calls after a signal is received (undefined behavior).
@@ -155,15 +113,9 @@ rt.Flush();                                 // NON-RT: drain before exit/shutdow
 
 ### GitHub Actions Workflows
 
-**C++ Workflow** (`.github/workflows/cpp.yml`):
-- Runs on: ubuntu-22.04, ubuntu-24.04
-- Separate build and test jobs
-- Tests use `-DBUILD_TESTING=ON`
+**C++ Workflow** (`.github/workflows/cpp.yml`): ubuntu-22.04 + ubuntu-24.04; separate build and test jobs (`-DBUILD_TESTING=ON`); sanitizer lanes (ASan/UBSan, TSan).
 
-**ROS Workflow** (`.github/workflows/ros.yml`):
-- Builds with ROS Humble and Jazzy
-- Uses colcon build system
-- Automatically sets `USE_SYS_SPDLOG=ON` for ROS Humble
+**ROS Workflow** (`.github/workflows/ros.yml`): builds with ROS Humble and Jazzy via colcon.
 
 ## Development Guidelines
 
@@ -176,16 +128,16 @@ rt.Flush();                                 // NON-RT: drain before exit/shutdow
 
 ### What belongs here (and what doesn't)
 
-Add to xmBase only things every component could share: logging facilities, or a type that is genuinely spoken by more than one layer. Concretely:
+Add to xmBase only things every component could share: the instrumentation surface, or a type that is genuinely spoken by more than one layer. Concretely:
 - A new **common type** goes in `include/xmbase/types/` (header-only; no CMakeLists change needed).
-- A new **driver/control interface** does **not** go here — it belongs to its owning component (driver interfaces → xmDriver's `xmmu/hal/`; control/motion types → xmNavigation). If a would-be "common" type is only used by one upper layer, put it in that layer instead.
+- A new **driver/control interface** does **not** go here — it belongs to its owning component. If a would-be "common" type is only used by one upper layer, put it in that layer instead.
 
 ### Testing
 
 - Tests use GoogleTest (bundled in `third_party/googletest`)
-- Test files live in the top-level `test/` directory (e.g. `test/test_rt_logger.cpp`)
+- Test files live in the top-level `test/` directory (e.g. `test/test_logging.cpp` — the console-binding suite; `test/test_telemetry_api.cpp` — the seam/ABI contract)
 - Add new tests to `test/CMakeLists.txt`
-- The lock-free RT loggers carry property-based tests run under TSan + ASan/UBSan in CI
+- The console binding's concurrency test runs under TSan in CI; the telemetry suites run under ASan/UBSan
 - All test executables output to `build/bin/`
 
 ### Build Modes
@@ -216,7 +168,4 @@ Package details:
 
 ## ROS Integration
 
-The library detects ROS environments and adjusts accordingly:
-- Automatically uses system spdlog when `ROS_DISTRO=humble`
-- Can be built with colcon in a ROS workspace
-- Place in `src/` directory of colcon workspace and run `colcon build`
+The library can be built with colcon in a ROS workspace: place in `src/` and run `colcon build`. Time mapping to ROS clocks happens at the application boundary, not in this library.

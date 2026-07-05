@@ -1,21 +1,20 @@
 # xmBase Telemetry — API-Tier Design
 
-- Status: Active (API tier shipped; SDK lands in xmTelemetry P0b)
+- Status: Active (API tier + built-in console binding shipped; the xmTelemetry SDK is privately maintained — available for production integrations)
 - Governing decisions: [ADR 0004 — telemetry layering](https://github.com/rxdu/xmotion/blob/main/docs/adr/0004-telemetry-layering.md); full-stack design in the [umbrella design doc](https://github.com/rxdu/xmotion/blob/main/docs/design/telemetry-library-design.md)
-- Executable specification: the [xmTelemetry scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (S1–S13)
 - Companion docs: [blueprint.md](blueprint.md) (the WHOLE module: tiers, data flow, roadmap, coverage) · [reference.md](reference.md) (every symbol + contract) · [guide.md](guide.md) (how to instrument) · [`examples/`](../../examples/)
 
 ## 1. What this is
 
-One instrumentation surface for the whole XMotion family — logs, metrics, causal traces, high-rate signals, and health — usable identically from a 1 kHz control loop and a planning thread. This document covers the **API tier**, which lives in xmBase and is the part users interact with; the machinery (rings, drain, sinks, exporters) is the xmTelemetry SDK's job and is deliberately invisible here.
+One instrumentation surface for the whole XMotion family — logs, metrics, causal traces, high-rate signals, and health — usable identically from a 1 kHz control loop and a planning thread. This document covers the **API tier**, which lives in xmBase and is the part users interact with; the machinery is the xmTelemetry SDK’s job and is deliberately invisible here.
 
 The layering mirrors OpenTelemetry's API/SDK/exporter split, adapted for robotics (ADR 0004):
 
 | Tier | Home | Contents | Linked |
 |------|------|----------|--------|
 | **API** | **xmBase** `include/xmbase/telemetry/` | 4 verbs + health, context spine, handles, binding seam, unbound fallback | always |
-| SDK | xmTelemetry | rings, drain, router, metric sampling, Console/Null sinks, lifecycle | optional |
-| Exporters | xmTelemetry (per CMake option) | MCAP flight recorder, OTLP, LTTng | opt-in |
+| SDK | xmTelemetry (private) | the production runtime: RT-safe capture, flight recording, lifecycle | optional |
+| Exporters / tools | xmTelemetry | recording formats, exports, recovery/triage tooling | opt-in |
 
 Dependency rule: components (xmDriver, xmNavigation, …) instrument against **this API only**; applications choose the SDK and exporters. xmBase never depends on xmTelemetry; neither depends on ROS.
 
@@ -37,16 +36,16 @@ The API↔SDK boundary is an **install-once table of function pointers** (`Bindi
 
 | State | When | events | metrics | scopes/signals |
 |---|---|---|---|---|
-| unbound | no SDK, or after explicit `InstallBinding(nullptr)` | ≥ Warn → stderr | no-op slots | no-op |
-| **interim logging binding** | xmBase built with `ENABLE_LOGGING` (default) — auto-adopted on first use | classic logging: async spdlog, `XLOG_*` env vars, log files, full fmt fidelity | aggregate (unexported) | dropped |
-| SDK bound | app called `xmotion::telemetry::Init()` (xmTelemetry) | SDK rings → sinks | sampled + exported | recorded/exported |
+| silent | explicit `InstallBinding(nullptr)` | ≥ Warn → stderr | no-op slots | no-op |
+| **console binding (built-in, default)** | xmBase built with `ENABLE_LOGGING` (default) — auto-adopted on first use | full-severity console logging, dependency-free (`XLOG_LEVEL` env honored) | no-op slots | no-op |
+| SDK bound | app initialized the xmTelemetry SDK | captured per the SDK’s guarantees | sampled + exported | recorded/exported |
 
-  An **explicit** `InstallBinding` call — including `nullptr` (the SDK's `Shutdown()` end-state) — is authoritative and disables auto-adoption for the rest of the process.
+  An **explicit** `InstallBinding` call — including `nullptr` — is authoritative and disables auto-adoption for the rest of the process.
 
 ## 4. What is intentionally NOT here
 
 - **No spans/metrics engine** — trace assembly, histogram export, OTLP encoding are SDK/exporter work.
-- **No public logging module** — `XLOG_*` was unified into the `event()` verb (clean break, v0.3.0); the spdlog interim backend and the RT ring live as *private* implementation under `src/logging/` until they migrate into the SDK (P0b/P1). Nothing logging-shaped is installed.
+- **No public logging module** — `XLOG_*` was unified into the `event()` verb (clean break, v0.3.0); the only compiled piece is the small dependency-free console binding. Nothing logging-shaped is installed.
 - **No configuration surface** — env-var/config ownership moves to the SDK; the API only exposes `SetLogLevel`/`SetResource` pass-throughs.
 
 ## 5. Cost model (hot path, bound)
@@ -55,11 +54,11 @@ The API↔SDK boundary is an **install-once table of function pointers** (`Bindi
 |---|---|
 | `counter.Add()` / `gauge.Set()` / `histogram.Record()` | relaxed atomic op(s) on a fixed slot; no binding load |
 | `XM_INFO(...)` (below runtime level) | one binding load + one `should_log` call — args not even packed |
-| `XM_INFO(...)` (enabled) | arg copy into a ≤160 B stack pack + one seam call (SDK: ring push) |
+| `XM_INFO(...)` (enabled) | arg copy into a ≤160 B stack pack + one seam call |
 | `XM_SCOPE` | 2× `Now()` + 1 id generation + 1 seam call at destruction |
 | `channel.Publish(pod)` | one seam call with a ≤`kMaxSignalPayload` byte copy |
-| anything, unbound | the same minus the seam call (stderr only for Warn+/faults) |
+| anything, silenced (`InstallBinding(nullptr)`) | the same minus the seam call (stderr only for Warn+/faults) |
 
 ## 6. How the API evolved (and evolves)
 
-The surface was **scenario-driven**: realistic use cases were written as wish-code *before* the API existed, and every gap they exposed became a numbered delta (D1–D15 so far — trace creation, context guards, value handles, span links, pre-init contract, `Shutdown(deadline)`, …) recorded in the [scenario catalog](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md). API changes continue to flow through that loop: propose via a scenario or real consumer friction → record the delta → change the surface (bump `kBindingAbiVersion` if the seam moves) → update the scenarios in lockstep.
+The surface was **scenario-driven**: realistic use cases were written as wish-code *before* the API existed, and every gap they exposed became a numbered delta (D1–D15 so far — trace creation, context guards, value handles, span links, pre-init contract, `Shutdown(deadline)`, …) recorded in the scenario catalog (maintained with the SDK). API changes continue to flow through that loop: propose via a scenario or real consumer friction → record the delta → change the surface (bump `kBindingAbiVersion` if the seam moves) → update the scenarios in lockstep.

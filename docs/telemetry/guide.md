@@ -7,7 +7,7 @@ How to instrument XMotion code with the telemetry API: logging, metrics, traces,
 namespace tel = xmotion::telemetry;
 ```
 
-Companions: [blueprint.md](blueprint.md) (the whole module: tiers, data flow, roadmap) · [reference.md](reference.md) (every symbol + contract) · [design.md](design.md) (why it's shaped this way) · runnable [`examples/`](../../examples/) · the [xmTelemetry scenario suite](https://github.com/rxdu/xmTelemetry/blob/main/docs/scenarios.md) (the executable specification — S1 is the canonical hot loop, S2 the canonical trace pipeline, S3 the device-health pattern).
+Companions: [blueprint.md](blueprint.md) (the whole module: tiers, data flow, roadmap) · [reference.md](reference.md) (every symbol + contract) · [design.md](design.md) (why it's shaped this way) · runnable [`examples/`](../../examples/).
 
 ## The two rules that matter
 
@@ -22,7 +22,7 @@ XM_WARN_STREAM("pose " << pose);                     // ostream form (non-RT; la
 tel::SetLogLevel(tel::Severity::kDebug);             // runtime level (was XLOG_LEVEL)
 ```
 
-Migration from `XLOG_*` is mechanical: `XLOG_` → `XM_`; `XLOG_LEVEL(x)` → `tel::SetLogLevel(...)`; compile floor `XMBASE_ACTIVE_LEVEL` → `XM_TELEMETRY_LEVEL`. Behavior (async spdlog, `XLOG_*` env vars, log files) is unchanged by default.
+Migration from `XLOG_*` is mechanical: `XLOG_` → `XM_`; `XLOG_LEVEL(x)` → `tel::SetLogLevel(...)`; compile floor `XMBASE_ACTIVE_LEVEL` → `XM_TELEMETRY_LEVEL`. Console behavior is preserved by the built-in dependency-free binding (`XLOG_LEVEL` env honored; file logging moved to the SDK recording plane).
 
 **Attribute your subsystem** — one tag per driver/module, so events are filterable per-device downstream:
 
@@ -119,9 +119,9 @@ if (next_state != state_) {   // and only after the condition held for N ticks
 
 Call sites never change; the backend decides where records go:
 
-| Verb | Default today (interim spdlog binding, zero init) | With the xmTelemetry SDK (`tel::Init()` in `main`) |
+| Verb | Default (built-in console binding, zero init) | With the xmTelemetry SDK bound |
 |---|---|---|
-| events | console + log files, like classic XLOG | rings → Console/MCAP/OTLP sinks |
+| events | console, like classic XLOG | captured + recorded/exported |
 | metrics | aggregate in-slot (not yet exported) | sampled + exported (OTLP → Grafana) |
 | scopes/links | dropped | trace records (OTLP/Foxglove) |
 | signals | dropped | MCAP flight recorder |
