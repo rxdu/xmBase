@@ -8,7 +8,7 @@
  * Convention:
  *   - Clock is steady_clock — monotonic, never steps backward. Use it for
  *     durations, deadlines, and loop timing (NOT for human-readable wall time;
- *     the logging sink uses system_clock for that, see logging/).
+ *     the console log sink stamps lines with system_clock).
  *   - Timestamp is a steady-clock time_point at nanosecond resolution.
  *   - Duration is nanoseconds.
  *

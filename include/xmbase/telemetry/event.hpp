@@ -57,8 +57,8 @@ inline EventSource GetEventSource(const char* name) noexcept {
 }
 
 // Runtime level gate: true if an event at `sev` would currently be recorded.
-// Bound: the binding's runtime level (the SDK's, or DefaultLogger's for the
-// interim logging binding). Unbound: the stderr threshold (Warn+). Use this
+// Bound: the binding's runtime level (the SDK's, or the console binding's).
+// Unbound: the stderr threshold (Warn+). Use this
 // to skip expensive message construction (the XLOG_*_STREAM macros do).
 inline bool ShouldLog(Severity sev) noexcept {
   const Binding* b = ActiveBinding();
@@ -105,9 +105,9 @@ inline void SetResource(std::string_view key, std::string_view value) {
   if (b != nullptr) b->set_resource(key, value);
 }
 
-// Runtime minimum-severity control (formerly XLOG_LEVEL / XLOG_GET_LEVEL).
-// Routed through the binding (interim: DefaultLogger's level; SDK: its own).
-// Unbound: set is a no-op and get reports the fixed stderr threshold (kWarn).
+// Runtime minimum-severity control. Routed through the binding (console
+// binding: one atomic level, default Info, seeded from $XLOG_LEVEL; SDK: its
+// own). Unbound: set is a no-op and get reports the stderr threshold (kWarn).
 inline void SetLogLevel(Severity min_sev) noexcept {
   const Binding* b = ActiveBinding();
   if (b != nullptr && b->set_level != nullptr) b->set_level(min_sev);

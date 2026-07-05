@@ -8,7 +8,6 @@
  * Try it with different levels:
  *   XLOG_LEVEL=0 ./xm_logging_example            # show everything (trace+)
  *   XLOG_LEVEL=4 ./xm_logging_example            # errors and worse only
- *   XLOG_ENABLE_LOGFILE=1 ./xm_logging_example   # also write to ~/.xmotion/log
  *
  * Copyright (c) 2024-2026 Ruixiang Du (rdu)
  */
