@@ -13,10 +13,6 @@ add_executable(test_types_core test_types_core.cpp)
 target_link_libraries(test_types_core xmBase gtest gtest_main)
 gtest_discover_tests(test_types_core)
 
-add_executable(test_ring_buffer test_ring_buffer.cpp)
-target_link_libraries(test_ring_buffer xmBase gtest gtest_main)
-gtest_discover_tests(test_ring_buffer)
-
 add_executable(test_serialization test_serialization.cpp)
 target_link_libraries(test_serialization xmBase gtest gtest_main)
 gtest_discover_tests(test_serialization)

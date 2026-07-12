@@ -5,7 +5,7 @@
  * a consumer (control loop, UI, logger) always wants the NEWEST value and
  * never wants to wait for it.
  *
- * This is the pattern the deprecated container/ring_buffer was often bent
+ * This is the pattern the legacy ring buffer (now driver-local) was often bent
  * into ("push samples, drain the queue, keep the last one") — paying queue
  * management, memory, and latency for values that were thrown away. A
  * MessageSlot IS that pattern, directly: depth-1, wait-free writer, readers

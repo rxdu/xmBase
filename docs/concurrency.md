@@ -62,11 +62,11 @@ The axis is the COMPONENT BOUNDARY, not the thread/process boundary:
 
 If two pieces of code are parts of one component: this module. If they are components being composed: messaging — even when both live in one process (messaging's in-process reach exists so a one-process deployment can split later without rewiring, M6). `EventHub` will never grow QoS, cross-boundary topics, or reaches — needing those means you have outgrown it and want messaging. Messaging will never grow handler callbacks (R3).
 
-## Coverage of the deprecated modules (event/ + thread_safe_queue removed at 0.5.0; ring_buffer relocates at 0.6.0)
+## Coverage of the deprecated modules (both removed at 0.5.0; ring_buffer relocated to xmDriver the same wave — xmDriver#33)
 
 Every capability of the deprecated pair, and where it went. Family-wide audit (2026-07-12): zero consumers outside xmBase itself for event/ and thread_safe_queue; ring_buffer's only consumer is xmDriver's async_port facade — so removal carries zero migration.
 
-**container/ring_buffer:** record FIFO -> `SpscQueue` (built); lossy variant -> drop-oldest policy (reserved); span writes/reads, Peek/PeekAt, partial consume, Reset -> repatriated WITH the type to xmDriver — these are protocol-parser semantics (byte-stream scanning, frame resync), not inter-thread handoff, and a peekable partially-consumable "queue" has no clean concurrency contract; multi-producer tolerance -> driver's copy keeps its mutex; generic MP fan-in is the reserved `MpscQueue`.
+**container/ring_buffer:** record FIFO -> `SpscQueue` (built); lossy variant -> drop-oldest policy (reserved); span writes/reads, Peek/PeekAt, partial consume, Reset -> repatriated WITH the type to xmDriver (landed: xmDriver#33) — these are protocol-parser semantics (byte-stream scanning, frame resync), not inter-thread handoff, and a peekable partially-consumable "queue" has no clean concurrency contract; multi-producer tolerance -> driver's copy keeps its mutex; generic MP fan-in is the reserved `MpscQueue`.
 
 **container/thread_safe_queue:** FIFO handoff -> `SpscQueue`; blocking Pop -> `EventCount::WaitFor(bound, predicate)` + `TryPop` (bounded and shutdown-aware — see the worker-inbox example); multi-producer -> reserved `MpscQueue` (until then: one SpscQueue per producer, consumer sweeps); multi-CONSUMER work-stealing -> deliberately out of scope (never used in the family; a new gated row if it ever appears); unboundedness -> deliberately dropped (R7) — a feature removal, not a gap.
 

@@ -120,8 +120,9 @@ endif()
 # Two targets since 0.5.0 (ADR 0007 target split):
 #   - xmBase (xmotion::xmBase): the Eigen-FREE core — types wire tier
 #     (scalar/time/vector/stamped), telemetry, serialization, concurrency,
-#     testing, and the deprecated container/ring_buffer (relocates to
-#     xmDriver at 0.6.0; event/ + thread_safe_queue were removed at 0.5.0).
+#     and testing. (The legacy container/ and event/ modules were removed
+#     at 0.5.0: ring_buffer repatriated to xmDriver async_port, its only
+#     consumer; the rest had zero consumers — see CHANGELOG + ADR 0007.)
 #   - xmBaseGeometry (xmotion::xmBaseGeometry): the Eigen geometry tier —
 #     types/geometry.hpp + quantities.hpp consumers link this in addition
 #     to the core. Header-only (INTERFACE): it exists to carry the Eigen3
