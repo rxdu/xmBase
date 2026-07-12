@@ -62,7 +62,7 @@ The axis is the COMPONENT BOUNDARY, not the thread/process boundary:
 
 If two pieces of code are parts of one component: this module. If they are components being composed: messaging — even when both live in one process (messaging's in-process reach exists so a one-process deployment can split later without rewiring, M6). `EventHub` will never grow QoS, cross-boundary topics, or reaches — needing those means you have outgrown it and want messaging. Messaging will never grow handler callbacks (R3).
 
-## Coverage of the deprecated modules (container/, event/ — removed at 0.6.0)
+## Coverage of the deprecated modules (event/ + thread_safe_queue removed at 0.5.0; ring_buffer relocates at 0.6.0)
 
 Every capability of the deprecated pair, and where it went. Family-wide audit (2026-07-12): zero consumers outside xmBase itself for event/ and thread_safe_queue; ring_buffer's only consumer is xmDriver's async_port facade — so removal carries zero migration.
 
@@ -70,7 +70,7 @@ Every capability of the deprecated pair, and where it went. Family-wide audit (2
 
 **container/thread_safe_queue:** FIFO handoff -> `SpscQueue`; blocking Pop -> `EventCount::WaitFor(bound, predicate)` + `TryPop` (bounded and shutdown-aware — see the worker-inbox example); multi-producer -> reserved `MpscQueue` (until then: one SpscQueue per producer, consumer sweeps); multi-CONSUMER work-stealing -> deliberately out of scope (never used in the family; a new gated row if it ever appears); unboundedness -> deliberately dropped (R7) — a feature removal, not a gap.
 
-**event/ (superseded pending redesign, not "retired"):** the CAPABILITY — component-internal typed eventing for multi-threaded code — is charter-reserved as `EventHub` above; it was placed in xmBase intentionally (components cannot link messaging, so foundation tier is the only home that serves component internals). What retires at 0.6.0 is the pre-doctrine IMPLEMENTATION: the `GetInstance()` global singleton (wiring must be explicit and instance-owned, ADR 0005), string-keyed `shared_ptr<BaseEvent>` runtime downcasts (typed subscriptions instead), and unbounded ThreadSafeQueue delivery with a hidden worker (bounded SpscQueue + EventCount; thread ownership explicit). Async-dispatch-as-a-pattern -> the worker-inbox example today, `EventHub`'s async mode when built. Push-style callbacks ("call me when X" on an arbitrary thread) are deliberately not offered anywhere in the family — poll with bounded parks is the doctrine (R3).
+**event/ (removed at 0.5.0 — superseded pending redesign, not abandoned):** the CAPABILITY — component-internal typed eventing for multi-threaded code — is charter-reserved as `EventHub` above; it was placed in xmBase intentionally (components cannot link messaging, so foundation tier is the only home that serves component internals). What retires at 0.6.0 is the pre-doctrine IMPLEMENTATION: the `GetInstance()` global singleton (wiring must be explicit and instance-owned, ADR 0005), string-keyed `shared_ptr<BaseEvent>` runtime downcasts (typed subscriptions instead), and unbounded ThreadSafeQueue delivery with a hidden worker (bounded SpscQueue + EventCount; thread ownership explicit). Async-dispatch-as-a-pattern -> the worker-inbox example today, `EventHub`'s async mode when built. Push-style callbacks ("call me when X" on an arbitrary thread) are deliberately not offered anywhere in the family — poll with bounded parks is the doctrine (R3).
 
 ## Deliberate exclusions (do not add these here)
 

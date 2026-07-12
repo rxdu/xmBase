@@ -120,7 +120,8 @@ endif()
 # Two targets since 0.5.0 (ADR 0007 target split):
 #   - xmBase (xmotion::xmBase): the Eigen-FREE core — types wire tier
 #     (scalar/time/vector/stamped), telemetry, serialization, concurrency,
-#     testing, and the deprecated container/ + event/ (removal at 0.6.0).
+#     testing, and the deprecated container/ring_buffer (relocates to
+#     xmDriver at 0.6.0; event/ + thread_safe_queue were removed at 0.5.0).
 #   - xmBaseGeometry (xmotion::xmBaseGeometry): the Eigen geometry tier —
 #     types/geometry.hpp + quantities.hpp consumers link this in addition
 #     to the core. Header-only (INTERFACE): it exists to carry the Eigen3
@@ -129,9 +130,7 @@ find_package(Threads REQUIRED)
 
 add_library(xmBase STATIC
     src/telemetry_unbound.cpp
-    src/telemetry_console_binding.cpp
-    src/event_dispatcher.cpp
-    src/async_event_dispatcher.cpp)
+    src/telemetry_console_binding.cpp)
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
