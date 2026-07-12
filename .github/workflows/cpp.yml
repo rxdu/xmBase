@@ -114,7 +114,7 @@ jobs:
   # detection is sound through the atomic accesses without modeling the
   # fences; the warning flags a known, accepted limitation, and under
   # XMOTION_WERROR it would otherwise break the lane (the xmMessaging
-  # sanitize-block pattern; see latest_slot.hpp ordering notes).
+  # sanitize-block pattern; see message_buffer.hpp ordering notes).
   sanitizers:
     name: sanitizers (${{ matrix.name }})
     runs-on: ubuntu-24.04

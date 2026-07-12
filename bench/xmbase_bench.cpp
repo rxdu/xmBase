@@ -23,19 +23,19 @@
 #include <thread>
 #include <vector>
 
-#include "xmbase/concurrency/bounded_queue.hpp"
-#include "xmbase/concurrency/latest_slot.hpp"
-#include "xmbase/concurrency/waiter.hpp"
+#include "xmbase/concurrency/spsc_queue.hpp"
+#include "xmbase/concurrency/message_buffer.hpp"
+#include "xmbase/concurrency/event_count.hpp"
 #include "xmbase/testing/alloc_probe.hpp"  // ONE translation unit per binary
 #include "xmbase/testing/bench_harness.hpp"
 
 namespace {
 
-using xmotion::concurrency::BoundedQueue;
-using xmotion::concurrency::FutexWaiter;
-using xmotion::concurrency::HeapPlacement;
-using xmotion::concurrency::LatestSlot;
-using xmotion::concurrency::MutexLatestSlot;
+using xmotion::concurrency::SpscQueue;
+using xmotion::concurrency::EventCount;
+using xmotion::concurrency::HeapStorage;
+using xmotion::concurrency::MessageBuffer;
+using xmotion::concurrency::MutexMessageBuffer;
 using xmotion::testing::AllocProbe;
 using xmotion::testing::BenchResult;
 using xmotion::testing::MeasureBatched;
@@ -89,7 +89,7 @@ void BenchLatestStore() {
   if (!Enabled(name)) {
     return;
   }
-  LatestSlot<Payload<kBytes>, HeapPlacement, FutexWaiter> slot;
+  MessageBuffer<Payload<kBytes>, HeapStorage, EventCount> slot;
   Payload<kBytes> value;
   value.words[0] = 1;
 
@@ -114,7 +114,7 @@ void BenchLatestLoad() {
   if (!Enabled(name)) {
     return;
   }
-  LatestSlot<Payload<kBytes>, HeapPlacement, FutexWaiter> slot;
+  MessageBuffer<Payload<kBytes>, HeapStorage, EventCount> slot;
   Payload<kBytes> value;
   value.words[0] = 7;
   slot.Store(value);
@@ -146,7 +146,7 @@ void BenchQueuePushPop() {
   if (!Enabled(name)) {
     return;
   }
-  BoundedQueue<Payload<kBytes>> queue(16);
+  SpscQueue<Payload<kBytes>> queue(16);
   Payload<kBytes> value;
   Payload<kBytes> out;
 
@@ -171,7 +171,7 @@ void BenchMutexLatestStoreLoad() {
   if (!Enabled(name)) {
     return;
   }
-  MutexLatestSlot<Payload<64>> slot;
+  MutexMessageBuffer<Payload<64>> slot;
   Payload<64> value;
   Payload<64> out;
 
@@ -196,7 +196,7 @@ void BenchWaiterNotifyUncontended() {
   if (!Enabled(name)) {
     return;
   }
-  FutexWaiter waiter;
+  EventCount waiter;
 
   BenchResult r;
   r.name = name;
@@ -218,7 +218,7 @@ void BenchLatestStoreContended() {
   if (!Enabled(name)) {
     return;
   }
-  LatestSlot<Payload<kBytes>, HeapPlacement, FutexWaiter> slot;
+  MessageBuffer<Payload<kBytes>, HeapStorage, EventCount> slot;
   Payload<kBytes> value;
   value.words[0] = 1;
   slot.Store(value);

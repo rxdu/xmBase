@@ -1,7 +1,7 @@
 /*
- * latest_slot.hpp
+ * message_buffer.hpp
  *
- * LatestSlot<T, Placement, Waiter> — a wait-free depth-1 exchange ("latest
+ * MessageBuffer<T, Storage, EventCountPolicy> — a wait-free depth-1 exchange ("latest
  * value wins"), guarantees:
  *
  *   1. Store() never blocks and never fails for capacity reasons — the slot
@@ -21,7 +21,7 @@
  *   4. T is the caller's whole record — callers that need stamps, ordinals,
  *      or headers embed them in T (xmMessaging stores a MailRecord<P> here).
  *
- * Promoted verbatim from xmMessaging detail/latest_slot.hpp (ADR 0007, W1);
+ * Promoted verbatim from xmMessaging detail/message_buffer.hpp (ADR 0007, W1);
  * requirement/decision IDs in comments (R1, R7, D15, P0b, P1b, M4) are
  * xmMessaging's, retained so the proofs keep their provenance.
  *
@@ -48,13 +48,13 @@
  * writers one level up). Any number of readers.
  *
  * T must be trivially copyable (word-wise copy). Non-trivially-copyable
- * values use MutexLatestSlot below — see its comment for the stated
+ * values use MutexMessageBuffer below — see its comment for the stated
  * divergence.
  *
- * Placement provides the cell storage (heap by default; a caller-provided
- * region — e.g. a shared mapping — via RegionPlacement: same algorithm,
- * zero changes below); Waiter is carried for the parking verbs (never
- * touched by Store/Load) — see placement.hpp / waiter.hpp for the seam.
+ * Storage provides the cell storage (heap by default; a caller-provided
+ * region — e.g. a shared mapping — via RegionStorage: same algorithm,
+ * zero changes below); EventCountPolicy is carried for the parking verbs (never
+ * touched by Store/Load) — see storage.hpp / event_count.hpp for the seam.
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
  */
@@ -68,8 +68,8 @@
 #include <mutex>
 #include <type_traits>
 
-#include "xmbase/concurrency/placement.hpp"
-#include "xmbase/concurrency/waiter.hpp"
+#include "xmbase/concurrency/storage.hpp"
+#include "xmbase/concurrency/event_count.hpp"
 
 namespace xmotion {
 namespace concurrency {
@@ -86,14 +86,20 @@ inline void CpuRelax() noexcept {
 #endif
 }
 
-template <typename T, typename Placement = HeapPlacement,
-          typename Waiter = CondvarWaiter>
-class LatestSlot {
+template <typename T, typename Storage = HeapStorage,
+          typename EventCountPolicy = CondvarEventCount>
+// NAMING NOTE — not a FreeRTOS "Message Buffer": FreeRTOS's primitive of
+// that name is a variable-length FIFO stream with consuming reads. This
+// type is the opposite on both counts: a SINGLE-SLOT message container —
+// writes overwrite the occupant, reads return the newest WITHOUT consuming
+// it (the family's LatestMailbox contract, ADR 0006-era docs). If you need
+// FIFO + consuming semantics, use SpscQueue.
+class MessageBuffer {
  public:
   static_assert(std::is_trivially_copyable_v<T>,
-                "LatestSlot requires a trivially copyable T (the seqlock "
+                "MessageBuffer requires a trivially copyable T (the seqlock "
                 "copies words); non-trivially-copyable values use "
-                "MutexLatestSlot");
+                "MutexMessageBuffer");
   // The same cell type may be placed inside shared mappings (P1b), where the
   // atomics must be address-free — guaranteed iff always lock-free
   // ([atomics.lockfree]/4), which holds on both tested baselines (R1).
@@ -107,14 +113,14 @@ class LatestSlot {
   // pure function of the placed type.
   static constexpr std::size_t StorageBytes() noexcept { return sizeof(Cell); }
 
-  // The placement instance decides WHERE the cell lives (heap vs a shared
-  // region) and WHETHER this constructor initializes it. Heap placement
+  // The storage instance decides WHERE the cell lives (heap vs a shared
+  // region) and WHETHER this constructor initializes it. Heap storage
   // always initializes; a region ATTACHER must not (P1b: the cell may
   // already hold live data — the warm-start value that survives a writer
-  // restart). The Store/Load algorithm below is placement-blind.
-  explicit LatestSlot(Placement placement = Placement())
-      : cell_(placement.template MakeSingle<Cell>()) {
-    if (placement.Initialize()) {
+  // restart). The Store/Load algorithm below is storage-blind.
+  explicit MessageBuffer(Storage storage = Storage())
+      : cell_(storage.template MakeSingle<Cell>()) {
+    if (storage.Initialize()) {
       // Explicit zero-init: an even, zero sequence means "never written".
       cell_->seq.store(0, std::memory_order_relaxed);
       for (std::size_t i = 0; i < kWords; ++i) {
@@ -123,8 +129,8 @@ class LatestSlot {
     }
   }
 
-  LatestSlot(const LatestSlot&) = delete;
-  LatestSlot& operator=(const LatestSlot&) = delete;
+  MessageBuffer(const MessageBuffer&) = delete;
+  MessageBuffer& operator=(const MessageBuffer&) = delete;
 
   // Writer side. Wait-free: bounded straight-line code, no loops, no locks.
   // Single writer at a time (see the concurrency contract above).
@@ -223,8 +229,8 @@ class LatestSlot {
   }
 
   // Parking seam (bounded parking verbs only; NEVER touched by Store/Load —
-  // see waiter.hpp).
-  Waiter& waiter() noexcept { return waiter_; }
+  // see event_count.hpp).
+  EventCountPolicy& waiter() noexcept { return event_count_; }
 
  private:
   static constexpr std::size_t kWords =
@@ -235,8 +241,8 @@ class LatestSlot {
     std::atomic<std::uint64_t> words[kWords];
   };
 
-  typename Placement::template SingleHandle<Cell> cell_;
-  Waiter waiter_;
+  typename Storage::template SingleHandle<Cell> cell_;
+  EventCountPolicy event_count_;
 };
 
 // Fallback slot for movable-but-not-trivially-copyable values.
@@ -248,11 +254,11 @@ class LatestSlot {
 // caller does). Upgrade path if a consumer ever needs a lock-free rich-type
 // slot: pointer-rotation triple buffer (P1 candidate).
 template <typename T>
-class MutexLatestSlot {
+class MutexMessageBuffer {
  public:
-  MutexLatestSlot() = default;
-  MutexLatestSlot(const MutexLatestSlot&) = delete;
-  MutexLatestSlot& operator=(const MutexLatestSlot&) = delete;
+  MutexMessageBuffer() = default;
+  MutexMessageBuffer(const MutexMessageBuffer&) = delete;
+  MutexMessageBuffer& operator=(const MutexMessageBuffer&) = delete;
 
   void Store(const T& value) {
     std::lock_guard<std::mutex> lock(mutex_);

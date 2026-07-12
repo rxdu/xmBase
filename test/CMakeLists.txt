@@ -31,21 +31,21 @@ gtest_discover_tests(test_telemetry_api)
 
 # Concurrency primitive verification (ADR 0007 W1) — suite names carry
 # "Concurrency" so the CI TSan leg can select them with a ctest filter.
-add_executable(test_concurrency_latest_slot test_concurrency_latest_slot.cpp)
-target_link_libraries(test_concurrency_latest_slot xmBase gtest gtest_main)
-gtest_discover_tests(test_concurrency_latest_slot)
+add_executable(test_concurrency_message_buffer test_concurrency_message_buffer.cpp)
+target_link_libraries(test_concurrency_message_buffer xmBase gtest gtest_main)
+gtest_discover_tests(test_concurrency_message_buffer)
 
-add_executable(test_concurrency_bounded_queue test_concurrency_bounded_queue.cpp)
-target_link_libraries(test_concurrency_bounded_queue xmBase gtest gtest_main)
-gtest_discover_tests(test_concurrency_bounded_queue)
+add_executable(test_concurrency_spsc_queue test_concurrency_spsc_queue.cpp)
+target_link_libraries(test_concurrency_spsc_queue xmBase gtest gtest_main)
+gtest_discover_tests(test_concurrency_spsc_queue)
 
-add_executable(test_concurrency_waiter test_concurrency_waiter.cpp)
-target_link_libraries(test_concurrency_waiter xmBase gtest gtest_main)
-gtest_discover_tests(test_concurrency_waiter)
+add_executable(test_concurrency_event_count test_concurrency_event_count.cpp)
+target_link_libraries(test_concurrency_event_count xmBase gtest gtest_main)
+gtest_discover_tests(test_concurrency_event_count)
 
-add_executable(test_concurrency_placement test_concurrency_placement.cpp)
-target_link_libraries(test_concurrency_placement xmBase gtest gtest_main)
-gtest_discover_tests(test_concurrency_placement)
+add_executable(test_concurrency_storage test_concurrency_storage.cpp)
+target_link_libraries(test_concurrency_storage xmBase gtest gtest_main)
+gtest_discover_tests(test_concurrency_storage)
 
 # Geometry tier (Eigen) tests.
 if (TARGET xmBaseGeometry)

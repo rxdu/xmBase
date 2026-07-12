@@ -7,10 +7,10 @@
  * protocol (epoch bump before wake) must make every round observe the
  * predicate — a lost wakeup shows up as a timeout. Runs under TSan in CI.
  *
- * The CondvarWaiter timed-park test is skipped under TSan: on the GCC 11
+ * The CondvarEventCount timed-park test is skipped under TSan: on the GCC 11
  * (Ubuntu 22.04, R1) baseline libtsan does not intercept
  * pthread_cond_clockwait, producing false reports (the recorded evidence in
- * waiter.hpp — the reason FutexWaiter exists).
+ * event_count.hpp — the reason EventCount exists).
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
  */
@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "xmbase/concurrency/waiter.hpp"
+#include "xmbase/concurrency/event_count.hpp"
 
 #if defined(__SANITIZE_THREAD__)
 #define XMBASE_TSAN 1
@@ -35,18 +35,18 @@
 namespace {
 
 using namespace std::chrono_literals;
-using xmotion::concurrency::CondvarWaiter;
-using xmotion::concurrency::FutexWaiter;
+using xmotion::concurrency::CondvarEventCount;
+using xmotion::concurrency::EventCount;
 
 TEST(ConcurrencyWaiter, FutexWaitReturnsImmediatelyWhenPredicateHolds) {
-  FutexWaiter waiter;
+  EventCount waiter;
   const auto t0 = xmotion::Now();
   EXPECT_TRUE(waiter.WaitFor(5s, [] { return true; }));
   EXPECT_LT(xmotion::Now() - t0, 1s);  // did not park for the full bound
 }
 
 TEST(ConcurrencyWaiter, FutexWaitTimesOutOnFalsePredicate) {
-  FutexWaiter waiter;
+  EventCount waiter;
   const auto t0 = xmotion::Now();
   EXPECT_FALSE(waiter.WaitFor(50ms, [] { return false; }));
   // The bound holds: the park lasted at least ~the requested time.
@@ -54,7 +54,7 @@ TEST(ConcurrencyWaiter, FutexWaitTimesOutOnFalsePredicate) {
 }
 
 TEST(ConcurrencyWaiter, FutexWaitUntilPastDeadlineReturnsPredicate) {
-  FutexWaiter waiter;
+  EventCount waiter;
   EXPECT_FALSE(waiter.WaitUntil(xmotion::Now() - 1ms, [] { return false; }));
   EXPECT_TRUE(waiter.WaitUntil(xmotion::Now() - 1ms, [] { return true; }));
 }
@@ -65,7 +65,7 @@ TEST(ConcurrencyWaiter, FutexWaitUntilPastDeadlineReturnsPredicate) {
 // a lost wakeup would surface as a round that burns the full 5 s bound.
 TEST(ConcurrencyWaiter, FutexLostWakeupHammer) {
   constexpr int kRounds = 300;
-  FutexWaiter waiter;
+  EventCount waiter;
   for (int round = 0; round < kRounds; ++round) {
     std::atomic<bool> flag{false};
     std::thread notifier([&] {
@@ -80,7 +80,7 @@ TEST(ConcurrencyWaiter, FutexLostWakeupHammer) {
 }
 
 TEST(ConcurrencyWaiter, FutexNotifyAllWakesEveryWaiter) {
-  FutexWaiter waiter;
+  EventCount waiter;
   std::atomic<bool> flag{false};
   std::atomic<int> woke{0};
   std::vector<std::thread> waiters;
@@ -106,8 +106,8 @@ TEST(ConcurrencyWaiter, FutexNotifyAllWakesEveryWaiter) {
 // across threads (the half TSan can see).
 TEST(ConcurrencyWaiter, FutexSharedWordFormWakesAcrossViews) {
   std::atomic<std::uint32_t> shared_word{0};
-  FutexWaiter view_a(&shared_word);
-  FutexWaiter view_b(&shared_word);
+  EventCount view_a(&shared_word);
+  EventCount view_b(&shared_word);
 
   std::atomic<bool> flag{false};
   std::thread parked([&] {
@@ -121,8 +121,8 @@ TEST(ConcurrencyWaiter, FutexSharedWordFormWakesAcrossViews) {
 }
 
 #if !defined(XMBASE_TSAN)
-TEST(ConcurrencyWaiter, CondvarWaiterNotifyAndTimeout) {
-  CondvarWaiter waiter;
+TEST(ConcurrencyWaiter, CondvarEventCountNotifyAndTimeout) {
+  CondvarEventCount waiter;
   std::atomic<bool> flag{false};
   std::thread parked([&] {
     EXPECT_TRUE(waiter.WaitFor(

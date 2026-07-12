@@ -4,7 +4,7 @@
  * @brief
  *
  * DEPRECATED-FOR-REMOVAL at xmBase 0.6.0 (ADR 0007): superseded by the
- * verified primitives in xmbase/concurrency/ (BoundedQueue for SPSC rings;
+ * verified primitives in xmbase/concurrency/ (SpscQueue for SPSC rings;
  * callers needing a blocking multi-producer queue keep a local copy in the
  * owning component). New code must not add includes of this header.
  *

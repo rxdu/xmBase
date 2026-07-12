@@ -1,11 +1,11 @@
 /*
- * bounded_queue.hpp
+ * spsc_queue.hpp
  *
- * BoundedQueue<T, Placement> — a lock-free bounded SPSC ring (lock-free,
+ * SpscQueue<T, Storage> — a lock-free bounded SPSC ring (lock-free,
  * allocation-free after wiring, memory sized at wiring from the declared
  * depth — R7).
  *
- * Promoted verbatim from xmMessaging detail/bounded_queue.hpp (ADR 0007,
+ * Promoted verbatim from xmMessaging detail/spsc_queue.hpp (ADR 0007,
  * W1); requirement/decision IDs in comments (R7, D7/D8, D15, P0b, P1b) are
  * xmMessaging's, retained so the proofs keep their provenance.
  *
@@ -34,8 +34,8 @@
  * and enqueues nothing — the caller decides whether that is back-pressure
  * (refuse), drop-newest (count and continue), or something else.
  *
- * T: any copyable type works with HeapPlacement (the Q1–Q4 ordering makes
- * the plain cell copies race-free). RegionPlacement additionally requires
+ * T: any copyable type works with HeapStorage (the Q1–Q4 ordering makes
+ * the plain cell copies race-free). RegionStorage additionally requires
  * trivially copyable / trivially destructible T (cells living in a shared
  * region are never destroyed and are copied across process boundaries).
  *
@@ -48,13 +48,13 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "xmbase/concurrency/placement.hpp"
+#include "xmbase/concurrency/storage.hpp"
 
 namespace xmotion {
 namespace concurrency {
 
-template <typename T, typename Placement = HeapPlacement>
-class BoundedQueue {
+template <typename T, typename Storage = HeapStorage>
+class SpscQueue {
  public:
   // Ring control block. Placed like the cells (heap or a shared region,
   // P1b): producer and consumer may live in different PROCESSES, so the
@@ -79,22 +79,22 @@ class BoundedQueue {
 
   // Depth comes from the caller's wiring-time declaration; all cell memory
   // is allocated/claimed here, never on the push/pop path (R7). Only an
-  // INITIALIZING placement authors capacity/indices; an attaching view
+  // INITIALIZING storage authors capacity/indices; an attaching view
   // (P1b: the producer's view of a consumer-owned ring) passes the region's
   // cell bound as `depth` and reads the live capacity from the shared
   // control block.
-  explicit BoundedQueue(std::uint32_t depth, Placement placement = Placement())
-      : ctrl_(placement.template MakeSingle<Control>()),
-        cells_(placement.template MakeArray<T>(depth == 0 ? 1 : depth)) {
-    if (placement.Initialize()) {
+  explicit SpscQueue(std::uint32_t depth, Storage storage = Storage())
+      : ctrl_(storage.template MakeSingle<Control>()),
+        cells_(storage.template MakeArray<T>(depth == 0 ? 1 : depth)) {
+    if (storage.Initialize()) {
       ctrl_->capacity.store(depth == 0 ? 1 : depth, std::memory_order_relaxed);
       ctrl_->head.store(0, std::memory_order_relaxed);
       ctrl_->tail.store(0, std::memory_order_relaxed);
     }
   }
 
-  BoundedQueue(const BoundedQueue&) = delete;
-  BoundedQueue& operator=(const BoundedQueue&) = delete;
+  SpscQueue(const SpscQueue&) = delete;
+  SpscQueue& operator=(const SpscQueue&) = delete;
 
   // Producer side. Returns false when full (caller applies its policy).
   bool TryPush(const T& value) {
@@ -147,8 +147,8 @@ class BoundedQueue {
   }
 
  private:
-  typename Placement::template SingleHandle<Control> ctrl_;
-  typename Placement::template ArrayHandle<T> cells_;
+  typename Storage::template SingleHandle<Control> ctrl_;
+  typename Storage::template ArrayHandle<T> cells_;
 };
 
 }  // namespace concurrency

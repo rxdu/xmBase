@@ -11,13 +11,13 @@
  *     R7 violation (nothing may grow unbounded on a robot). Here capacity
  *     is declared at wiring time and overflow is an EXPLICIT, counted
  *     decision at the producer (reject, coalesce, or shed — caller policy).
- *   - Parking without lost wakeups: FutexWaiter is an eventcount — the
+ *   - Parking without lost wakeups: EventCount is an eventcount — the
  *     producer's NotifyAll after a push can never slip between the worker's
- *     emptiness check and its sleep (see waiter.hpp for the protocol; it is
+ *     emptiness check and its sleep (see event_count.hpp for the protocol; it is
  *     also why timed condvars are avoided under TSan on GCC 11).
  *   - SPSC by contract: one producer, one worker. For N producers, give
  *     each its own queue and let the worker sweep them (the fan-in pattern
- *     xmMessaging uses per-subscriber) — do NOT share one BoundedQueue.
+ *     xmMessaging uses per-subscriber) — do NOT share one SpscQueue.
  *
  * If you need consumption semantics, handler priorities, or GUI-thread
  * marshaling, that is a UI event system — quickviz core/event owns that
@@ -31,8 +31,8 @@
 #include <cstdio>
 #include <thread>
 
-#include "xmbase/concurrency/bounded_queue.hpp"
-#include "xmbase/concurrency/waiter.hpp"
+#include "xmbase/concurrency/spsc_queue.hpp"
+#include "xmbase/concurrency/event_count.hpp"
 
 namespace {
 
@@ -47,8 +47,8 @@ int main() {
   using namespace std::chrono_literals;
 
   // Wiring time: capacity is declared, memory is fixed from here on (R7).
-  xmotion::concurrency::BoundedQueue<Command> inbox(64);
-  xmotion::concurrency::FutexWaiter waiter;
+  xmotion::concurrency::SpscQueue<Command> inbox(64);
+  xmotion::concurrency::EventCount waiter;
   std::atomic<bool> shutdown{false};
 
   // Worker: drain what's there, then park until notified (bounded park —

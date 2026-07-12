@@ -1,17 +1,17 @@
 /*
- * waiter.hpp
+ * event_count.hpp
  *
- * Waiter policy: how a thread parks while it waits for progress on a
+ * EventCountPolicy policy: how a thread parks while it waits for progress on a
  * concurrency primitive. Used ONLY by bounded parking verbs (e.g. "wait for
  * work or shutdown", "wait for a reply") and NEVER on a wait-free/lock-free
  * hot path — those verbs do not signal anyone.
  *
- * Promoted verbatim from xmMessaging detail/waiter.hpp (ADR 0007, W1);
+ * Promoted verbatim from xmMessaging detail/waiter.hpp (renamed) (ADR 0007, W1);
  * requirement/decision IDs in comments (R1, R8, D10/D11/D16, P0b, P1b) are
  * xmMessaging's, retained so the evidence keeps its provenance.
  *
  * Which waiter to use for timed parks (P0b part 2 decision, recorded):
- * FutexWaiter, NOT CondvarWaiter. Empirically verified on the R1 baseline
+ * EventCount, NOT CondvarEventCount. Empirically verified on the R1 baseline
  * (GCC 11.4 / Ubuntu 22.04): a timed std::condition_variable wait compiles
  * to pthread_cond_clockwait (CLOCK_MONOTONIC), which that libtsan does NOT
  * intercept — every timed monotonic condvar park produces false "double
@@ -23,10 +23,10 @@
  * exactly. Any timed wait added on this seam must stay TSan-verifiable on
  * the GCC 11 (Ubuntu 22.04, R1) baseline.
  *
- * This is the second half of the region reuse seam (see placement.hpp): the
+ * This is the second half of the region reuse seam (see storage.hpp): the
  * waiter interface (NotifyAll + predicated bounded wait) is what a shared-
- * memory user reuses — FutexWaiter already IS the shm-capable shape (the
- * P1b variant moves the epoch word into the shared mapping). CondvarWaiter
+ * memory user reuses — EventCount already IS the shm-capable shape (the
+ * P1b variant moves the epoch word into the shared mapping). CondvarEventCount
  * is retained as the portable non-Linux fallback; it becomes usable for
  * timed parks only when the baseline toolchain's TSan intercepts
  * pthread_cond_clockwait (GCC >= 12).
@@ -66,11 +66,11 @@ namespace concurrency {
 //   notifier: make pred true; epoch.fetch_add(1, release); futex_wake(all)
 // A notifier that bumps epoch after the waiter's load makes the wait return
 // immediately (value mismatch), so the pred-recheck can never be lost.
-class FutexWaiter {
+class EventCount {
  public:
   // Process-private eventcount: the epoch word is a member and futex ops
   // carry FUTEX_PRIVATE_FLAG (cheaper: no shared-mapping key lookup).
-  FutexWaiter() noexcept : word_(&internal_), shared_(false) {}
+  EventCount() noexcept : word_(&internal_), shared_(false) {}
 
   // Shared-mapping form (P1b): the eventcount over a 32-bit word living in
   // a SHARED mapping (e.g. a segment header's futex word). Futex ops drop
@@ -79,11 +79,11 @@ class FutexWaiter {
   // claim made good: same protocol, same code, only the word's home and the
   // futex flags differ. The word's lifetime is the mapping's; this object
   // is a per-process view.
-  explicit FutexWaiter(std::atomic<std::uint32_t>* shared_word) noexcept
+  explicit EventCount(std::atomic<std::uint32_t>* shared_word) noexcept
       : word_(shared_word), shared_(true) {}
 
-  FutexWaiter(const FutexWaiter&) = delete;
-  FutexWaiter& operator=(const FutexWaiter&) = delete;
+  EventCount(const EventCount&) = delete;
+  EventCount& operator=(const EventCount&) = delete;
 
   // Wake every parked thread. Called from transition sites (work becoming
   // pending, a reply landing, a peer detaching) — never from a hot path.
@@ -168,7 +168,7 @@ class FutexWaiter {
 
 // Condition-variable waiter (portable reference; NOT used for timed parks on
 // the R1 baseline — see the header comment for the TSan evidence).
-class CondvarWaiter {
+class CondvarEventCount {
  public:
   // Wake every parked thread. Called from wiring-time paths only.
   void NotifyAll() noexcept {

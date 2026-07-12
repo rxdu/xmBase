@@ -1,5 +1,5 @@
 /*
- * test_concurrency_latest_slot.cpp — the seqlock LatestSlot contract,
+ * test_concurrency_message_buffer.cpp — the seqlock MessageBuffer contract,
  * verified where the code now lives (ADR 0007 W1).
  *
  * The tear check runs the Boehm-seqlock claim under real concurrent load
@@ -19,15 +19,15 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "xmbase/concurrency/latest_slot.hpp"
+#include "xmbase/concurrency/message_buffer.hpp"
 
 namespace {
 
-using xmotion::concurrency::FutexWaiter;
-using xmotion::concurrency::HeapPlacement;
-using xmotion::concurrency::LatestSlot;
-using xmotion::concurrency::MutexLatestSlot;
-using xmotion::concurrency::RegionPlacement;
+using xmotion::concurrency::EventCount;
+using xmotion::concurrency::HeapStorage;
+using xmotion::concurrency::MessageBuffer;
+using xmotion::concurrency::MutexMessageBuffer;
+using xmotion::concurrency::RegionStorage;
 
 // Checksummed payload: every word is a function of the seed; a torn read
 // (words from two different Store calls) cannot produce a valid checksum.
@@ -59,23 +59,23 @@ struct Checksummed {
 static_assert(std::is_trivially_copyable_v<Checksummed>,
               "tear-check payload must be seqlock-storable");
 
-TEST(ConcurrencyLatestSlot, NeverWrittenLoadsNothing) {
-  LatestSlot<Checksummed> slot;
+TEST(ConcurrencyMessageBuffer, NeverWrittenLoadsNothing) {
+  MessageBuffer<Checksummed> slot;
   Checksummed out;
   EXPECT_FALSE(slot.Load(out));
   EXPECT_EQ(slot.LoadBounded(out, 8),
-            (LatestSlot<Checksummed>::LoadResult::kEmpty));
+            (MessageBuffer<Checksummed>::LoadResult::kEmpty));
 }
 
-TEST(ConcurrencyLatestSlot, StoreThenLoadRoundTrips) {
-  LatestSlot<Checksummed> slot;
+TEST(ConcurrencyMessageBuffer, StoreThenLoadRoundTrips) {
+  MessageBuffer<Checksummed> slot;
   slot.Store(Checksummed::Make(42));
   Checksummed out;
   ASSERT_TRUE(slot.Load(out));
   EXPECT_EQ(out.seed, 42u);
   EXPECT_TRUE(out.Valid());
   EXPECT_EQ(slot.LoadBounded(out, 8),
-            (LatestSlot<Checksummed>::LoadResult::kValue));
+            (MessageBuffer<Checksummed>::LoadResult::kValue));
   EXPECT_TRUE(out.Valid());
 }
 
@@ -83,8 +83,8 @@ TEST(ConcurrencyLatestSlot, StoreThenLoadRoundTrips) {
 // validating every copy they get. Any torn-but-validated read fails the
 // checksum. Runs under TSan in CI (the Boehm construction must be
 // data-race-free through the atomic word array).
-TEST(ConcurrencyLatestSlot, ConcurrentOverwriteNeverTears) {
-  LatestSlot<Checksummed> slot;
+TEST(ConcurrencyMessageBuffer, ConcurrentOverwriteNeverTears) {
+  MessageBuffer<Checksummed> slot;
 // Sanitized builds instrument every atomic op (~10-15x): a smaller store
 // count keeps the TSan CI lane around a second while the plain build gets
 // a longer racing window.
@@ -145,14 +145,14 @@ TEST(ConcurrencyLatestSlot, ConcurrentOverwriteNeverTears) {
 // repair must return the slot to "never written". The mid-Store state is
 // crafted through a region placement: seq is the cell's first member, so
 // the region's first word is pointer-interconvertible with it.
-TEST(ConcurrencyLatestSlot, LoadBoundedDetectsStalledWriterAndRepairs) {
-  using Slot = LatestSlot<Checksummed, RegionPlacement, FutexWaiter>;
+TEST(ConcurrencyMessageBuffer, LoadBoundedDetectsStalledWriterAndRepairs) {
+  using Slot = MessageBuffer<Checksummed, RegionStorage, EventCount>;
   alignas(64) unsigned char region[Slot::StorageBytes() + 64] = {};
 
-  Slot writer_view(RegionPlacement(region, sizeof(region), true));
+  Slot writer_view(RegionStorage(region, sizeof(region), true));
   writer_view.Store(Checksummed::Make(7));
 
-  Slot reader_view(RegionPlacement(region, sizeof(region), false));
+  Slot reader_view(RegionStorage(region, sizeof(region), false));
   Checksummed out;
   ASSERT_EQ(reader_view.LoadBounded(out, 8), Slot::LoadResult::kValue);
   EXPECT_EQ(out.seed, 7u);
@@ -176,11 +176,11 @@ TEST(ConcurrencyLatestSlot, LoadBoundedDetectsStalledWriterAndRepairs) {
   EXPECT_TRUE(out.Valid());
 }
 
-// MutexLatestSlot is the fallback for non-trivially-copyable values; for
+// MutexMessageBuffer is the fallback for non-trivially-copyable values; for
 // values BOTH slots accept, the observable contract must be equivalent.
-TEST(ConcurrencyLatestSlot, MutexFallbackMatchesSeqlockSemantics) {
-  LatestSlot<Checksummed> seqlock_slot;
-  MutexLatestSlot<Checksummed> mutex_slot;
+TEST(ConcurrencyMessageBuffer, MutexFallbackMatchesSeqlockSemantics) {
+  MessageBuffer<Checksummed> seqlock_slot;
+  MutexMessageBuffer<Checksummed> mutex_slot;
 
   Checksummed a, b;
   EXPECT_EQ(seqlock_slot.Load(a), mutex_slot.Load(b));  // both empty
@@ -196,9 +196,9 @@ TEST(ConcurrencyLatestSlot, MutexFallbackMatchesSeqlockSemantics) {
   }
 }
 
-// The reason MutexLatestSlot exists: values the seqlock cannot store.
-TEST(ConcurrencyLatestSlot, MutexFallbackCarriesRichTypes) {
-  MutexLatestSlot<std::string> slot;
+// The reason MutexMessageBuffer exists: values the seqlock cannot store.
+TEST(ConcurrencyMessageBuffer, MutexFallbackCarriesRichTypes) {
+  MutexMessageBuffer<std::string> slot;
   std::string out;
   EXPECT_FALSE(slot.Load(out));
   slot.Store(std::string("first"));

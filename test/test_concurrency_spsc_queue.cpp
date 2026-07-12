@@ -1,5 +1,5 @@
 /*
- * test_concurrency_bounded_queue.cpp — the SPSC BoundedQueue contract,
+ * test_concurrency_spsc_queue.cpp — the SPSC SpscQueue contract,
  * verified where the code now lives (ADR 0007 W1).
  *
  * The conservation stress is the load-bearing test: across a real
@@ -14,20 +14,20 @@
 #include <thread>
 
 #include "gtest/gtest.h"
-#include "xmbase/concurrency/bounded_queue.hpp"
+#include "xmbase/concurrency/spsc_queue.hpp"
 
 namespace {
 
-using xmotion::concurrency::BoundedQueue;
-using xmotion::concurrency::HeapPlacement;
+using xmotion::concurrency::SpscQueue;
+using xmotion::concurrency::HeapStorage;
 
 struct Record {
   std::uint64_t sequence = 0;
   std::uint64_t payload[7] = {};
 };
 
-TEST(ConcurrencyBoundedQueue, EmptyPopsNothing) {
-  BoundedQueue<Record> queue(4);
+TEST(ConcurrencySpscQueue, EmptyPopsNothing) {
+  SpscQueue<Record> queue(4);
   Record out;
   EXPECT_FALSE(queue.TryPop(out));
   EXPECT_EQ(queue.Size(), 0u);
@@ -35,8 +35,8 @@ TEST(ConcurrencyBoundedQueue, EmptyPopsNothing) {
   EXPECT_FALSE(queue.Full());
 }
 
-TEST(ConcurrencyBoundedQueue, ZeroDepthClampsToOne) {
-  BoundedQueue<Record> queue(0);
+TEST(ConcurrencySpscQueue, ZeroDepthClampsToOne) {
+  SpscQueue<Record> queue(0);
   EXPECT_EQ(queue.capacity(), 1u);
   Record r;
   r.sequence = 1;
@@ -49,8 +49,8 @@ TEST(ConcurrencyBoundedQueue, ZeroDepthClampsToOne) {
   EXPECT_FALSE(queue.TryPop(out));
 }
 
-TEST(ConcurrencyBoundedQueue, FifoOrderAndFullRefusal) {
-  BoundedQueue<Record> queue(3);
+TEST(ConcurrencySpscQueue, FifoOrderAndFullRefusal) {
+  SpscQueue<Record> queue(3);
   Record r;
   for (std::uint64_t i = 1; i <= 3; ++i) {
     r.sequence = i;
@@ -72,7 +72,7 @@ TEST(ConcurrencyBoundedQueue, FifoOrderAndFullRefusal) {
 // Conservation under a real SPSC thread pair: N pushed values arrive
 // exactly once, strictly in order. The producer spins on Full (the caller's
 // back-pressure policy); the consumer polls until it has everything.
-TEST(ConcurrencyBoundedQueue, SpscConservationStress) {
+TEST(ConcurrencySpscQueue, SpscConservationStress) {
 // Sanitized builds instrument every atomic op: a smaller count keeps the
 // sanitizer CI lanes fast while the plain build gets a longer racing window.
 #if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__)
@@ -80,7 +80,7 @@ TEST(ConcurrencyBoundedQueue, SpscConservationStress) {
 #else
   constexpr std::uint64_t kCount = 2000000;
 #endif
-  BoundedQueue<Record> queue(64);
+  SpscQueue<Record> queue(64);
 
   std::atomic<bool> failed{false};
   std::thread consumer([&] {
