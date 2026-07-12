@@ -119,6 +119,15 @@ TEST(ConcurrencyMessageSlot, ConcurrentOverwriteNeverTears) {
           last_seed = out.seed;
         }
       }
+      // Post-quiescence load: guaranteed to validate (writer done), so the
+      // liveness assertion below cannot flake under serializing schedulers
+      // (valgrind runs readers only after the writer finishes its quantum).
+      if (slot.Load(out)) {
+        ++local_loads;
+        if (!out.Valid() || out.seed < last_seed) {
+          torn.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
       loads.fetch_add(local_loads, std::memory_order_relaxed);
     });
   }

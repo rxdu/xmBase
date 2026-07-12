@@ -31,6 +31,10 @@ gtest_discover_tests(test_telemetry_api)
 
 # Concurrency primitive verification (ADR 0007 W1) — suite names carry
 # "Concurrency" so the CI TSan leg can select them with a ctest filter.
+add_executable(test_concurrency_lifecycle test_concurrency_lifecycle.cpp)
+target_link_libraries(test_concurrency_lifecycle xmBase gtest gtest_main)
+gtest_discover_tests(test_concurrency_lifecycle)
+
 add_executable(test_concurrency_message_slot test_concurrency_message_slot.cpp)
 target_link_libraries(test_concurrency_message_slot xmBase gtest gtest_main)
 gtest_discover_tests(test_concurrency_message_slot)
