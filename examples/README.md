@@ -11,5 +11,8 @@ Runnable reference usage of the telemetry API (and the common types), each mappe
 | `device_health_example` | the driver pattern: `EventSource` attribution, freshness gauge, hysteresis'd health transitions | Health |
 | `custom_binding_example` | the binding seam made executable: a ~100-line backend capturing every verb | reference.md → The seam |
 | `types_example` | the shared type vocabulary (`xmbase/types/`) | — |
+| `concurrency_message_slot_example` | `MessageSlot`: the latest-value handoff — wait-free overwrite writer, newest-or-nothing torn-free reads | docs/concurrency.md |
+| `concurrency_message_buffer_example` | `MessageBuffer<T,N>`: the recent-history window — newest-first non-consuming `Snapshot`, the delayed-measurement fusion case | docs/concurrency.md |
+| `concurrency_worker_inbox_example` | `SpscQueue` + `EventCount`: the bounded worker inbox — explicit counted overflow, lost-wakeup-free parking | docs/concurrency.md |
 
 The **application assembly** examples (binding the real SDK) live with the xmTelemetry SDK — libraries instrument (this repo's examples), applications bind.
