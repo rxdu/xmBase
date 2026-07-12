@@ -32,6 +32,7 @@ Pick by **read semantics first**, payload shape second:
 | `SpscQueue` drop-oldest overflow policy | lossy stream: overwrite the oldest instead of rejecting the newest (quickviz `RingBuffer`'s semantic, generalized; drops counted per the no-silent-loss doctrine) | first family consumer wanting lossy-FIFO (viz bridge chart feed is the candidate) |
 | `MpscQueue<T>` | bounded multi-producer fan-in, single consumer | xmMessaging shared-ownership publishers (mutex-serialized today by declared design; P1 TODO) |
 | `FixedPool<T>` | wiring-time-sized slot pool, allocation-free loan/return | promote xmMessaging's `LoanPool` when a second consumer appears |
+| `EventHub` (working name) | component-internal typed eventing: instance-based (no singleton), `Subscribe<T>` compile-time typed, LOSSLESS delivery, bounded (SpscQueue + EventCount underneath); sync dispatch on the caller's thread, async mode's thread-ownership question (owned worker vs thread-lending) decided by the first consumer | nav multi-threaded processing, or a GUI-style app on xmBase without quickviz |
 
 Reserving an entry means: the name, the one-line contract, and the row in this table. No headers, no code, no tests until the consumer is real — then the implementation arrives WITH its verification (gate 2) like everything else here.
 
@@ -47,11 +48,34 @@ User-facing types are **contract-named facades**; underneath, each is a thin wra
 
 Consequences: (1) adding a reserved facade means instantiating or parameterizing an existing core, not authoring a new concurrent algorithm; (2) facade APIs are frozen at first release, which is what makes internal core unification safe to do later without consumer churn (a `MessageBuffer` user cannot observe whether the inside is a bespoke slot or a ring of 1); (3) the mechanical extraction of Core A into an N-parameterized form happens in the same wave as the first N>1 consumer — not before (gates).
 
+## The three eventing tiers (which mechanism do I want?)
+
+The axis is the COMPONENT BOUNDARY, not the thread/process boundary:
+
+| Tier | Home | Loss contract | Who may use it |
+|---|---|---|---|
+| Inside one component | this module (`EventHub`, reserved; primitives, built) | lossless delivery to registered handlers | everyone — components and applications |
+| Between composed components (any reach: in-process, IPC, inter-host) | xmMessaging | QoS-governed; drop-tolerance is a feature | applications only (components never link messaging — ADR 0005) |
+| GUI applications | quickviz `core/event` | lossless + consumption + priority + GUI-thread marshaling | quickviz apps |
+
+If two pieces of code are parts of one component: this module. If they are components being composed: messaging — even when both live in one process (messaging's in-process reach exists so a one-process deployment can split later without rewiring, M6). `EventHub` will never grow QoS, cross-boundary topics, or reaches — needing those means you have outgrown it and want messaging. Messaging will never grow handler callbacks (R3).
+
+## Coverage of the deprecated modules (container/, event/ — removed at 0.6.0)
+
+Every capability of the deprecated pair, and where it went. Family-wide audit (2026-07-12): zero consumers outside xmBase itself for event/ and thread_safe_queue; ring_buffer's only consumer is xmDriver's async_port facade — so removal carries zero migration.
+
+**container/ring_buffer:** record FIFO -> `SpscQueue` (built); lossy variant -> drop-oldest policy (reserved); span writes/reads, Peek/PeekAt, partial consume, Reset -> repatriated WITH the type to xmDriver — these are protocol-parser semantics (byte-stream scanning, frame resync), not inter-thread handoff, and a peekable partially-consumable "queue" has no clean concurrency contract; multi-producer tolerance -> driver's copy keeps its mutex; generic MP fan-in is the reserved `MpscQueue`.
+
+**container/thread_safe_queue:** FIFO handoff -> `SpscQueue`; blocking Pop -> `EventCount::WaitFor(bound, predicate)` + `TryPop` (bounded and shutdown-aware — see the worker-inbox example); multi-producer -> reserved `MpscQueue` (until then: one SpscQueue per producer, consumer sweeps); multi-CONSUMER work-stealing -> deliberately out of scope (never used in the family; a new gated row if it ever appears); unboundedness -> deliberately dropped (R7) — a feature removal, not a gap.
+
+**event/ (superseded pending redesign, not "retired"):** the CAPABILITY — component-internal typed eventing for multi-threaded code — is charter-reserved as `EventHub` above; it was placed in xmBase intentionally (components cannot link messaging, so foundation tier is the only home that serves component internals). What retires at 0.6.0 is the pre-doctrine IMPLEMENTATION: the `GetInstance()` global singleton (wiring must be explicit and instance-owned, ADR 0005), string-keyed `shared_ptr<BaseEvent>` runtime downcasts (typed subscriptions instead), and unbounded ThreadSafeQueue delivery with a hidden worker (bounded SpscQueue + EventCount; thread ownership explicit). Async-dispatch-as-a-pattern -> the worker-inbox example today, `EventHub`'s async mode when built. Push-style callbacks ("call me when X" on an arbitrary thread) are deliberately not offered anywhere in the family — poll with bounded parks is the doctrine (R3).
+
 ## Deliberate exclusions (do not add these here)
 
 - **Byte-stream rings** (span writes, peek, partial consume, reset): transport-plumbing shape, driver-specific by the W1 fit audit — lives with xmDriver's `async_port`. It is not a record container and generalizing it here would blur both contracts.
 - **Unbounded anything**: banned by R7. The deprecated `container/thread_safe_queue` is the cautionary example.
 - **UI event dispatch** (consumption, priorities, GUI-thread marshaling): a different plane entirely (ADR 0007 §2) — quickviz `core/event` owns it.
+- **Multi-consumer work-stealing queues**: out of scope until a real consumer appears (see coverage map).
 
 ## The quickviz correspondence
 
