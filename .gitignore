@@ -103,3 +103,6 @@ octave-workspace
 
 # Simulink autosave extension
 .autosave
+
+# bench run artifacts
+/*.json
