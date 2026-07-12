@@ -14,5 +14,6 @@ Runnable reference usage of the telemetry API (and the common types), each mappe
 | `concurrency_message_slot_example` | `MessageSlot`: the latest-value handoff — wait-free overwrite writer, newest-or-nothing torn-free reads | docs/concurrency.md |
 | `concurrency_message_buffer_example` | `MessageBuffer<T,N>`: the recent-history window — newest-first non-consuming `Snapshot`, the delayed-measurement fusion case | docs/concurrency.md |
 | `concurrency_worker_inbox_example` | `SpscQueue` + `EventCount`: the bounded worker inbox — explicit counted overflow, lost-wakeup-free parking | docs/concurrency.md |
+| `concurrency_region_storage_example` | `RegionStorage`: the same `MessageBuffer` in a `MAP_SHARED` mapping across `fork()` — cross-process windows, warm-start attach, data outliving the writer process | docs/concurrency.md |
 
 The **application assembly** examples (binding the real SDK) live with the xmTelemetry SDK — libraries instrument (this repo's examples), applications bind.
