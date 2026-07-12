@@ -1,0 +1,20 @@
+{
+  "schema": "xmbase-bench-v1", "generated_at_utc": "2026-07-12T05:12:52Z", "smoke": false, "scale": 1.0,
+  "hardware": { "cpu_model": "Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz", "nproc": 12, "governor": "powersave", "kernel": "5.15.0-185-generic", "preempt_rt": false, "load_avg_1m": 1.7, "load_avg_5m": 1.2, "load_avg_15m": 0.8 },
+  "alloc_gate": { "passed": true, "failures": [] },
+  "benchmarks": [
+    { "name": "micro/latest_store/16B", "layer": "micro", "payload_bytes": 16, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 1.8, "p99": 1.8, "p999": 2.2, "max": 2.2, "mean": 1.8, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/latest_store/64B", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 9.0, "p99": 9.0, "p999": 59.3, "max": 59.3, "mean": 9.0, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/latest_store/256B", "layer": "micro", "payload_bytes": 256, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 16.9, "p99": 16.9, "p999": 17.0, "max": 17.0, "mean": 16.9, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/latest_load/64B", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 4.9, "p99": 4.9, "p999": 5.1, "max": 5.1, "mean": 4.8, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/message_buffer_store/64B/N1", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 8.1, "p99": 8.1, "p999": 29.4, "max": 29.4, "mean": 8.1, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/message_buffer_store/64B/N4", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 8.1, "p99": 8.1, "p999": 8.2, "max": 8.2, "mean": 8.1, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/message_buffer_store/64B/N16", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 8.1, "p99": 8.1, "p999": 8.2, "max": 8.2, "mean": 8.1, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/message_buffer_snapshot/64B/N16/k8", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 55.1, "p99": 55.1, "p999": 71.9, "max": 71.9, "mean": 55.1, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/queue_push_pop/64B", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 7.6, "p99": 7.7, "p999": 8.1, "max": 8.1, "mean": 7.6, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/queue_push_pop/256B", "layer": "micro", "payload_bytes": 256, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 9.5, "p99": 9.6, "p999": 9.7, "max": 9.7, "mean": 9.5, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/mutex_latest_store_load/64B", "layer": "micro", "payload_bytes": 64, "contended": false, "unit": "ns", "batch": 256, "samples": 400, "p50": 13.2, "p99": 13.2, "p999": 13.7, "max": 13.7, "mean": 13.2, "allocations": 0, "alloc_gated": true },
+    { "name": "micro/futex_notify_all_uncontended", "layer": "micro", "payload_bytes": 0, "contended": false, "unit": "ns", "batch": 64, "samples": 200, "p50": 500.2, "p99": 503.2, "p999": 574.5, "max": 574.5, "mean": 501.1, "allocations": 0, "alloc_gated": true },
+    { "name": "contended/latest_store_2readers/64B", "layer": "contended", "payload_bytes": 64, "contended": true, "unit": "ns", "batch": 256, "samples": 400, "p50": 42.5, "p99": 47.2, "p999": 47.9, "max": 47.9, "mean": 42.0, "allocations": 0, "alloc_gated": true }
+  ]
+}

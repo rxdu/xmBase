@@ -7,9 +7,9 @@
 
 Pick by **read semantics first**, payload shape second:
 
-1. *"I only ever want the newest value"* → `MessageBuffer<T>` (single-slot message container: writes overwrite, reads see the newest without consuming). Non-trivially-copyable payload → `MutexMessageBuffer<T>`; large payloads at high rate → TripleBuffer (reserved, below).
+1. *"I only ever want the newest value"* → `MessageSlot<T>` (single-slot message container: writes overwrite, reads see the newest without consuming). Non-trivially-copyable payload → `MutexMessageSlot<T>`; large payloads at high rate → TripleBuffer (reserved, below).
 2. *"I must see every value, in order, and consume each once"* → `SpscQueue<T>` (bounded, reject-on-full is the default policy — overflow is the caller's explicit decision).
-3. *"I want the recent history, newest-first, without consuming"* → depth-N MessageBuffer (reserved).
+3. *"I want the recent window, newest-first, without consuming"* → `MessageBuffer<T, N>` (built — the depth-N message buffer; snapshots are non-consuming and a writer lap only shortens a snapshot's tail).
 4. *"Several producers, one consumer"* → MpscQueue (reserved); until it exists: one SpscQueue per producer, consumer sweeps (the fan-in pattern xmMessaging uses).
 5. *"Preallocated slots I loan out and return"* → FixedPool (reserved; xmMessaging's `LoanPool` is the incubating instance).
 
@@ -17,8 +17,9 @@ Pick by **read semantics first**, payload shape second:
 
 | Type | Contract (one line) | Verified by |
 |---|---|---|
-| `MessageBuffer<T, Storage, EventCountPolicy>` | depth-1, wait-free writer, torn-free non-consuming reads; overwritten-unread is correct behavior | seqlock tear-check under TSan; aarch64 CI; placement-equivalence test |
-| `MutexMessageBuffer<T>` | same contract for non-trivially-copyable T (documented divergence: mutex, not wait-free) | unit tests |
+| `MessageSlot<T, Storage, EventCountPolicy>` | depth-1, wait-free writer, torn-free non-consuming reads; overwritten-unread is correct behavior | seqlock tear-check under TSan; aarch64 CI; placement-equivalence test |
+| `MessageBuffer<T, N, Storage, EventCountPolicy>` | keep the last N; newest-first non-consuming snapshots (strictly consecutive descending write positions, torn-free); writer laps invalidate only the tail of a snapshot | lap stress under max-rate writer (checksummed payload, tail-shortening observed, TSan); depth-1 equivalence vs `MessageSlot`; crash-poison (in-flight cell only) + repair; placement equivalence |
+| `MutexMessageSlot<T>` | same depth-1 contract for non-trivially-copyable T (documented divergence: mutex, not wait-free; depth-1 only) | unit tests |
 | `SpscQueue<T, Storage>` | bounded FIFO, single producer + single consumer BY CONTRACT, TryPush fails when full (caller decides: reject/coalesce/shed), consuming TryPop | SPSC stress; TSan; aarch64 |
 | `EventCount` / `CondvarEventCount` | lost-wakeup-free parking (eventcount protocol); futex form is shm-capable | lost-wakeup hammer; TSan |
 | `HeapStorage` / `RegionStorage` | where cells live (heap vs caller-provided region, e.g. a shared mapping) | placement-equivalence test |
@@ -27,7 +28,6 @@ Pick by **read semantics first**, payload shape second:
 
 | Type | Contract | Likely first consumer (the gate) |
 |---|---|---|
-| depth-N `MessageBuffer` (`Snapshot(out, k)`) | keep the last N; newest-first non-consuming snapshots; writer laps invalidate only the tail of a snapshot | quickviz `bridges/xmotion` scope widget (time-window plots) |
 | `TripleBuffer<T>` | lock-free latest-value with STABLE READER BORROW for payloads too big to copy per read (camera frames, point clouds) | viz bridge / perception pipelines |
 | `SpscQueue` drop-oldest overflow policy | lossy stream: overwrite the oldest instead of rejecting the newest (quickviz `RingBuffer`'s semantic, generalized; drops counted per the no-silent-loss doctrine) | first family consumer wanting lossy-FIFO (viz bridge chart feed is the candidate) |
 | `MpscQueue<T>` | bounded multi-producer fan-in, single consumer | xmMessaging shared-ownership publishers (mutex-serialized today by declared design; P1 TODO) |
@@ -36,17 +36,19 @@ Pick by **read semantics first**, payload shape second:
 
 Reserving an entry means: the name, the one-line contract, and the row in this table. No headers, no code, no tests until the consumer is real — then the implementation arrives WITH its verification (gate 2) like everything else here.
 
+Gate-override record: the depth-N `MessageBuffer` row moved from Reserved to Built on 2026-07-12 by owner override of its first-consumer gate (the "complete shape" decision — the seqlock family ships as slot + ring + queue in one wave), ahead of the quickviz `bridges/xmotion` scope widget it was gated on. The verification arrived with it, per gate 2.
+
 ## Structure: facades over shared cores
 
 User-facing types are **contract-named facades**; underneath, each is a thin wrapper over one of a deliberately small set of verified cores. The dividing line between cores is synchronization topology — that is what a memory-ordering proof attaches to, so one core never carries two proofs:
 
 | Core | Topology | Facades it serves |
 |---|---|---|
-| **Seqlock overwrite ring** (writer-only progress; readers retry, never consume) | one writer cursor, N cells, per-cell sequence | `MessageBuffer<T>` (N=1, today's implementation), depth-N `MessageBuffer`/`HistoryBuffer` (reserved) |
+| **Seqlock overwrite ring** (writer-only progress; readers retry, never consume) | one writer cursor, N cells, per-cell sequence — `detail::SeqlockRing<T, N>` (N-parameterized, built) | `MessageSlot<T>` (LITERALLY a ring of 1), `MessageBuffer<T, N>` (built) |
 | **SPSC cursor ring** (consumer writes state — the head; cells transfer ownership) | head/tail cursors | `SpscQueue<T>` reject-on-full (built), drop-oldest policy (reserved) |
 | **Swap chain** (pointer rotation, stable reader borrow) | 2–3 slots, atomic swap | `TripleBuffer<T>` (reserved) |
 
-Consequences: (1) adding a reserved facade means instantiating or parameterizing an existing core, not authoring a new concurrent algorithm; (2) facade APIs are frozen at first release, which is what makes internal core unification safe to do later without consumer churn (a `MessageBuffer` user cannot observe whether the inside is a bespoke slot or a ring of 1); (3) the mechanical extraction of Core A into an N-parameterized form happens in the same wave as the first N>1 consumer — not before (gates).
+Consequences: (1) adding a reserved facade means instantiating or parameterizing an existing core, not authoring a new concurrent algorithm; (2) facade APIs are frozen at first release, which is what makes internal core unification safe to do later without consumer churn (a `MessageSlot` user cannot observe whether the inside is a bespoke slot or a ring of 1); (3) the extraction of Core A into its N-parameterized form (`detail/seqlock_ring.hpp`) happened with the depth-N wave (gate owner-overridden 2026-07-12, the "complete shape" decision — see the record under Reserved): `MessageSlot` is now literally a ring of 1 over the shared core, and the depth-1 suite passing unmodified across the swap is the facade-freeze claim exercised for real.
 
 ## The three eventing tiers (which mechanism do I want?)
 
@@ -84,7 +86,7 @@ quickviz core stays family-dependency-free (ADR 0007 §4), so it keeps its own b
 | quickviz (standalone) | family equivalent | note |
 |---|---|---|
 | `RingBuffer<T, N>` (drop-oldest, mutex) | `SpscQueue` + reserved drop-oldest policy | both bounded, both lossy-by-policy |
-| `DoubleBuffer<T>` (write/swap, TryPull once per frame) | `MessageBuffer` (TC) / reserved `TripleBuffer` (borrow) | same latest-value role, different mechanics |
+| `DoubleBuffer<T>` (write/swap, TryPull once per frame) | `MessageSlot` (TC) / reserved `TripleBuffer` (borrow) | same latest-value role, different mechanics |
 | `core/event/*` | — | different plane, no equivalent by design |
 
 Keeping this table current is part of changing either side.

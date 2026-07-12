@@ -33,11 +33,11 @@ target_link_libraries(worker_pool_context_example xmBase)
 
 # The concurrency examples double as the migration guide from the
 # deprecated container/ and event/ modules (see CHANGELOG 0.5.0):
-#   message_buffer  — the latest-value handoff (what ring_buffer was bent into)
+#   message_slot — the latest-value handoff (what ring_buffer was bent into)
 #   worker_inbox — the bounded async-dispatch pattern (what event/ +
 #                  thread_safe_queue did, with explicit overflow policy)
-add_executable(concurrency_message_buffer_example concurrency_message_buffer_example.cpp)
-target_link_libraries(concurrency_message_buffer_example xmBase)
+add_executable(concurrency_message_slot_example concurrency_message_slot_example.cpp)
+target_link_libraries(concurrency_message_slot_example xmBase)
 
 add_executable(concurrency_worker_inbox_example concurrency_worker_inbox_example.cpp)
 target_link_libraries(concurrency_worker_inbox_example xmBase)

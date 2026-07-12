@@ -1,289 +1,156 @@
 /*
  * message_buffer.hpp
  *
- * MessageBuffer<T, Storage, EventCountPolicy> — a wait-free depth-1 exchange ("latest
- * value wins"), guarantees:
+ * MessageBuffer<T, N, Storage, EventCountPolicy> — the depth-N message
+ * buffer. Taxonomy contract (docs/concurrency.md): keep the last N;
+ * newest-first non-consuming snapshots; writer laps invalidate only the
+ * tail of a snapshot.
  *
- *   1. Store() never blocks and never fails for capacity reasons — the slot
- *      is overwritten (writer is WAIT-FREE: a fixed number of relaxed word
- *      stores plus two fences, no loops, no locks, regardless of readers).
- *   2. Load() returns the newest value or nothing, never a torn value: a
- *      seqlock validates the copy and retries on a concurrent overwrite.
- *      Writer-progress-only: readers retry, the writer NEVER waits — under
- *      a continuously-storing writer a reader is lock-free, not wait-free
- *      (each retry means the writer made progress). This is the documented
- *      bias (xmMessaging design.md POSIX-shm seqlock; R7 grants the writer
- *      wait-freedom).
- *   3. Overwrite accounting is the CALLER's job — the writer cannot count
- *      per-reader overwrites exactly without a lock, so callers that need
- *      it embed an ordinal in T and account one level up (that is what
- *      xmMessaging's per-subscriber ordinal-gap accounting does).
- *   4. T is the caller's whole record — callers that need stamps, ordinals,
- *      or headers embed them in T (xmMessaging stores a MailRecord<P> here).
+ * Facade over Core A (the seqlock overwrite ring,
+ * detail/seqlock_ring.hpp — one writer cursor, N cells, per-cell sequence),
+ * the same core MessageSlot wraps at N = 1. The core carries the
+ * memory-ordering proofs (W1/W2/R1/R2 fence pairs, W3/R0 cursor pair) and
+ * the lap-detection argument that backs the Snapshot guarantee: every
+ * returned snapshot is torn-free, newest-first, with strictly consecutive
+ * descending write positions — a concurrent writer can only shorten the
+ * tail.
  *
- * Promoted verbatim from xmMessaging detail/message_buffer.hpp (ADR 0007, W1);
- * requirement/decision IDs in comments (R1, R7, D15, P0b, P1b, M4) are
- * xmMessaging's, retained so the proofs keep their provenance.
+ * Guarantees, in MessageSlot's terms (same writer, same reader bias):
  *
- * Data-race freedom (and TSan cleanliness) comes from the Boehm seqlock
- * construction: the record bytes live in an array of relaxed
- * std::atomic<uint64_t> words, ordered by the sequence counter and fences.
- * Memory-ordering pairs, referenced from the code below:
+ *   1. Store() is WAIT-FREE and never fails for capacity reasons — the
+ *      oldest of the N values is overwritten.
+ *   2. LoadLatest() returns the newest value or nothing, never torn;
+ *      readers retry only while the writer makes progress (lock-free
+ *      readers, wait-free writer).
+ *   3. Snapshot(out, k) captures up to min(k, N, values stored) of the most
+ *      recent values, newest-first, into CALLER-PROVIDED storage — no
+ *      allocation, single pass, wait-free; the count returned is what
+ *      survived concurrent overwrites (possibly 0 under a racing writer).
+ *      The out-pointer + count signature follows the module's convention
+ *      (out-parameter reads, wiring-time-sized caller storage — R7); C++17
+ *      has no std::span, and an internal buffer would impose a copy or a
+ *      lifetime contract the seqlock cannot give.
+ *   4. Reads NEVER consume: every reader sees the same history; overwrite
+ *      accounting stays the caller's job (embed an ordinal in T).
  *
- *   (W1) writer: seq.store(odd, relaxed) THEN atomic_thread_fence(release)
- *        THEN relaxed word stores — any reader whose relaxed word LOAD
- *        reads one of those stores has the writer's release fence
- *        synchronize with the reader's acquire fence (R2), so the reader's
- *        SECOND seq load observes the odd value (or later) and the copy is
- *        rejected. A torn read can never validate.
- *   (W2) writer: final seq.store(even, release) — pairs with the reader's
- *        FIRST seq.load(acquire) (R1): a reader that observes seq == s+2
- *        observes every word store that happened-before it.
- *   (R1) reader: first seq.load(acquire) — see (W2).
- *   (R2) reader: relaxed word loads THEN atomic_thread_fence(acquire) THEN
- *        second seq.load(relaxed) — see (W1).
+ * NAMING NOTE — not a FreeRTOS "Message Buffer": FreeRTOS's primitive of
+ * that name is a variable-length CONSUMING byte FIFO (a stream of framed
+ * bytes, each read dequeues). This type is the opposite on every count: an
+ * N-slot OVERWRITE RING of fixed-size records with NON-CONSUMING
+ * newest-first snapshots — every reader can take the same snapshot, nothing
+ * is ever dequeued, and the writer overwrites the oldest instead of
+ * blocking. If you need FIFO + consuming semantics, use SpscQueue. Only the
+ * newest value needed? MessageSlot (message_slot.hpp) is the depth-1 form.
+ * Non-trivially-copyable values have no depth-N home: MutexMessageSlot is
+ * depth-1 only (docs/concurrency.md).
  *
- * Concurrency contract: SINGLE writer at a time (two unserialized writers
- * would corrupt the sequence — callers with shared ownership serialize their
- * writers one level up). Any number of readers.
+ * Concurrency contract: SINGLE writer at a time, any number of readers
+ * (the core's contract).
  *
- * T must be trivially copyable (word-wise copy). Non-trivially-copyable
- * values use MutexMessageBuffer below — see its comment for the stated
- * divergence.
- *
- * Storage provides the cell storage (heap by default; a caller-provided
- * region — e.g. a shared mapping — via RegionStorage: same algorithm,
- * zero changes below); EventCountPolicy is carried for the parking verbs (never
- * touched by Store/Load) — see storage.hpp / event_count.hpp for the seam.
+ * Storage/EventCountPolicy: the same seams as MessageSlot (storage.hpp /
+ * event_count.hpp); the region carve layout is documented in the core
+ * header — N cells then the cursor header, offsets a pure function of T
+ * and N (xmMessaging's shm layout consumes this at W2).
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
  */
 
 #pragma once
 
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <mutex>
 #include <type_traits>
 
-#include "xmbase/concurrency/storage.hpp"
+#include "xmbase/concurrency/detail/seqlock_ring.hpp"
 #include "xmbase/concurrency/event_count.hpp"
+#include "xmbase/concurrency/storage.hpp"
 
 namespace xmotion {
 namespace concurrency {
 
-// Polite spin hint for seqlock read retries (it only spins while the writer
-// is making progress).
-inline void CpuRelax() noexcept {
-#if defined(__x86_64__) || defined(__i386__)
-  __builtin_ia32_pause();
-#elif defined(__aarch64__) || defined(__arm__)
-  asm volatile("yield" ::: "memory");
-#else
-  std::atomic_signal_fence(std::memory_order_seq_cst);  // compiler barrier
-#endif
-}
-
-template <typename T, typename Storage = HeapStorage,
+template <typename T, std::size_t N, typename Storage = HeapStorage,
           typename EventCountPolicy = CondvarEventCount>
-// See docs/concurrency.md for the family buffer taxonomy (which type to
-// use when) and the facades-over-cores structure; depth-1 here is a contract
-// choice, not a mechanism limit — the seqlock generalizes to N-deep
-// newest-first snapshots, reserved until a consumer materializes.
-//
-// NAMING NOTE — not a FreeRTOS "Message Buffer": FreeRTOS's primitive of
-// that name is a variable-length FIFO stream with consuming reads. This
-// type is the opposite on both counts: a SINGLE-SLOT message container —
-// writes overwrite the occupant, reads return the newest WITHOUT consuming
-// it (the family's LatestMailbox contract, ADR 0006-era docs). If you need
-// FIFO + consuming semantics, use SpscQueue.
 class MessageBuffer {
  public:
+  static_assert(N >= 1, "MessageBuffer needs a depth of at least 1");
   static_assert(std::is_trivially_copyable_v<T>,
                 "MessageBuffer requires a trivially copyable T (the seqlock "
-                "copies words); non-trivially-copyable values use "
-                "MutexMessageBuffer");
-  // The same cell type may be placed inside shared mappings (P1b), where the
-  // atomics must be address-free — guaranteed iff always lock-free
-  // ([atomics.lockfree]/4), which holds on both tested baselines (R1).
-  static_assert(std::atomic<std::uint64_t>::is_always_lock_free,
-                "region-capable seqlock requires lock-free (address-free) "
-                "64-bit atomics");
+                "ring copies words); non-trivially-copyable values have no "
+                "depth-N home — MutexMessageSlot is depth-1 only (see the "
+                "taxonomy, docs/concurrency.md)");
 
-  // Bytes of placed storage one slot consumes — a region-layout computation
-  // needs it (e.g. xmMessaging's posix_shm segment layout); every user
-  // derives the same value from the same T, which is what makes offsets a
-  // pure function of the placed type.
-  static constexpr std::size_t StorageBytes() noexcept { return sizeof(Cell); }
+  // The compile-time depth (also available as capacity() for generic code).
+  static constexpr std::size_t kDepth = N;
 
-  // The storage instance decides WHERE the cell lives (heap vs a shared
-  // region) and WHETHER this constructor initializes it. Heap storage
-  // always initializes; a region ATTACHER must not (P1b: the cell may
-  // already hold live data — the warm-start value that survives a writer
-  // restart). The Store/Load algorithm below is storage-blind.
-  explicit MessageBuffer(Storage storage = Storage())
-      : cell_(storage.template MakeSingle<Cell>()) {
-    if (storage.Initialize()) {
-      // Explicit zero-init: an even, zero sequence means "never written".
-      cell_->seq.store(0, std::memory_order_relaxed);
-      for (std::size_t i = 0; i < kWords; ++i) {
-        cell_->words[i].store(0, std::memory_order_relaxed);
-      }
-    }
+  // Region-layout constants (see the carve layout in the core header):
+  // total placed bytes, and the per-cell stride within the cell array.
+  static constexpr std::size_t StorageBytes() noexcept {
+    return Ring::StorageBytes();
   }
+  static constexpr std::size_t CellBytes() noexcept {
+    return Ring::CellBytes();
+  }
+
+  // Same storage semantics as MessageSlot: heap always initializes; a
+  // region attacher preserves the live history it finds (P1b warm start).
+  explicit MessageBuffer(Storage storage = Storage()) : ring_(storage) {}
 
   MessageBuffer(const MessageBuffer&) = delete;
   MessageBuffer& operator=(const MessageBuffer&) = delete;
 
-  // Writer side. Wait-free: bounded straight-line code, no loops, no locks.
-  // Single writer at a time (see the concurrency contract above).
-  void Store(const T& value) noexcept {
-    Cell& c = *cell_;
-    // Stage the value as words on the stack; the zero fill gives any
-    // trailing padding a defined value so the stored words are reproducible.
-    std::uint64_t staged[kWords] = {};
-    std::memcpy(staged, &value, sizeof(T));
+  // Writer side — wait-free, overwrites the oldest of the N values.
+  void Store(const T& value) noexcept { ring_.Store(value); }
 
-    const std::uint64_t s = c.seq.load(std::memory_order_relaxed);
-    c.seq.store(s + 1, std::memory_order_relaxed);         // odd: in progress
-    std::atomic_thread_fence(std::memory_order_release);   // (W1)
-    for (std::size_t i = 0; i < kWords; ++i) {
-      c.words[i].store(staged[i], std::memory_order_relaxed);
-    }
-    c.seq.store(s + 2, std::memory_order_release);         // (W2)
+  // Latest value (identical to MessageSlot::Load).
+  bool LoadLatest(T& out) const noexcept { return ring_.Load(out); }
+
+  // Bounded latest read for the cross-process reach (P1b) — the depth-N
+  // analogue of MessageSlot::LoadBounded, same LoadResult contract.
+  using LoadResult =
+      typename detail::SeqlockRing<T, N, Storage,
+                                   EventCountPolicy>::LoadResult;
+
+  LoadResult LoadLatestBounded(T& out,
+                               std::uint32_t max_retries) const noexcept {
+    return ring_.LoadBounded(out, max_retries);
   }
 
-  // Reader side. Returns false if the slot was never written. Never blocks
-  // the writer; retries while the writer is mid-store (writer progress).
-  bool Load(T& out) const noexcept {
-    const Cell& c = *cell_;
-    std::uint64_t staged[kWords];
-    for (;;) {
-      const std::uint64_t s1 = c.seq.load(std::memory_order_acquire);  // (R1)
-      if (s1 == 0) {
-        return false;  // never written
-      }
-      if ((s1 & 1u) != 0u) {  // write in progress — retry
-        CpuRelax();
-        continue;
-      }
-      for (std::size_t i = 0; i < kWords; ++i) {
-        staged[i] = c.words[i].load(std::memory_order_relaxed);
-      }
-      std::atomic_thread_fence(std::memory_order_acquire);             // (R2)
-      if (c.seq.load(std::memory_order_relaxed) == s1) {
-        break;  // copy validated: no overwrite raced it
-      }
-      CpuRelax();
-    }
-    std::memcpy(&out, staged, sizeof(T));
-    return true;
+  // Newest-first non-consuming snapshot of up to k values into out[0..k);
+  // out must hold at least min(k, kDepth) values. Returns the count
+  // captured. ORDERING GUARANTEE (backed by the core's lap-detection
+  // argument, detail/seqlock_ring.hpp — same standing as the fence pairs):
+  //
+  //   - out[0] is the newest published value at the moment the writer
+  //     cursor was captured; every returned entry i was written at exactly
+  //     position (cursor-1) - i — STRICTLY CONSECUTIVE DESCENDING write
+  //     positions, no gaps, no reordering, ever.
+  //   - every returned entry is torn-free (each cell copy is seqlock-
+  //     validated AND index-matched before it counts).
+  //   - a concurrent writer can only SHORTEN THE TAIL of what is returned
+  //     (laps overwrite oldest-first, so the first failed cell proves every
+  //     older cell is gone too); it can never corrupt an entry, reorder
+  //     entries, or create a gap. The count may be less than
+  //     min(k, kDepth, values stored) — down to 0 under a racing writer —
+  //     and what IS returned always satisfies the three points above.
+  std::size_t Snapshot(T* out, std::size_t k) const noexcept {
+    return ring_.Snapshot(out, k);
   }
 
-  // Bounded read for the CROSS-PROCESS reach (P1b), where the writer can be
-  // SIGKILLed mid-Store (impossible in-process: threads die with their
-  // process). Same algorithm and ordering pairs as Load(); the only
-  // difference is a retry budget so a dead writer's permanently-odd
-  // sequence is DETECTED (kStalled) instead of spun on forever — the
-  // "skippable sequence" half of the M4 crash story. kStalled can also
-  // fire under pathological live-writer pressure (max_retries consecutive
-  // overwrites during one read); the caller's fallback (the last value it
-  // already took) is correct in both cases, because a value that never
-  // finished its Store was never published.
-  enum class LoadResult : std::uint8_t { kValue, kEmpty, kStalled };
+  static constexpr std::size_t capacity() noexcept { return N; }
 
-  LoadResult LoadBounded(T& out, std::uint32_t max_retries) const noexcept {
-    const Cell& c = *cell_;
-    std::uint64_t staged[kWords];
-    for (std::uint32_t attempt = 0; attempt <= max_retries; ++attempt) {
-      const std::uint64_t s1 = c.seq.load(std::memory_order_acquire);  // (R1)
-      if (s1 == 0) {
-        return LoadResult::kEmpty;  // never written (or crash-repaired)
-      }
-      if ((s1 & 1u) != 0u) {  // write in progress — or writer died mid-store
-        CpuRelax();
-        continue;
-      }
-      for (std::size_t i = 0; i < kWords; ++i) {
-        staged[i] = c.words[i].load(std::memory_order_relaxed);
-      }
-      std::atomic_thread_fence(std::memory_order_acquire);             // (R2)
-      if (c.seq.load(std::memory_order_relaxed) == s1) {
-        std::memcpy(&out, staged, sizeof(T));
-        return LoadResult::kValue;
-      }
-      CpuRelax();
-    }
-    return LoadResult::kStalled;
-  }
+  // Crash repair — wiring path of a (re)claiming sole writer (see the core
+  // comment): retracts the in-flight cell only; the published history stays
+  // readable.
+  void RepairAfterWriterCrash() noexcept { ring_.RepairAfterWriterCrash(); }
 
-  // Crash repair (P1b) — wiring path of a (re)claiming WRITER only, while it
-  // is provably the slot's sole writer (in xmMessaging: the
-  // publisher-liveness claim in shm_segment.hpp). A writer SIGKILLed
-  // mid-Store left seq odd and the words half-written; the in-flight value
-  // was never published, so the honest repair is "never written": readers
-  // fall back to their own last taken value (staleness keeps rising —
-  // M4-A1), and the next Store starts a fresh even/odd cycle.
-  void RepairAfterWriterCrash() noexcept {
-    Cell& c = *cell_;
-    if ((c.seq.load(std::memory_order_relaxed) & 1u) != 0u) {
-      c.seq.store(0, std::memory_order_release);
-    }
-  }
-
-  // Parking seam (bounded parking verbs only; NEVER touched by Store/Load —
-  // see event_count.hpp).
-  EventCountPolicy& waiter() noexcept { return event_count_; }
+  // Parking seam (bounded parking verbs only; never touched by
+  // Store/Load/Snapshot).
+  EventCountPolicy& event_count() noexcept { return ring_.event_count(); }
 
  private:
-  static constexpr std::size_t kWords =
-      (sizeof(T) + sizeof(std::uint64_t) - 1) / sizeof(std::uint64_t);
+  using Ring = detail::SeqlockRing<T, N, Storage, EventCountPolicy>;
 
-  struct Cell {
-    std::atomic<std::uint64_t> seq;
-    std::atomic<std::uint64_t> words[kWords];
-  };
-
-  typename Storage::template SingleHandle<Cell> cell_;
-  EventCountPolicy event_count_;
-};
-
-// Fallback slot for movable-but-not-trivially-copyable values.
-//
-// STATED DIVERGENCE (P0b interim): this slot takes a small mutex on both
-// sides, so the wait-free/allocation-free hot-path guarantee (R7) holds for
-// trivially copyable values only — which is also the only class of value
-// for which it CAN hold (copying a std::vector allocates no matter what the
-// caller does). Upgrade path if a consumer ever needs a lock-free rich-type
-// slot: pointer-rotation triple buffer (P1 candidate).
-template <typename T>
-class MutexMessageBuffer {
- public:
-  MutexMessageBuffer() = default;
-  MutexMessageBuffer(const MutexMessageBuffer&) = delete;
-  MutexMessageBuffer& operator=(const MutexMessageBuffer&) = delete;
-
-  void Store(const T& value) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    value_ = value;
-    written_ = true;
-  }
-
-  bool Load(T& out) const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!written_) {
-      return false;
-    }
-    out = value_;
-    return true;
-  }
-
- private:
-  mutable std::mutex mutex_;
-  T value_{};
-  bool written_ = false;
+  Ring ring_;
 };
 
 }  // namespace concurrency

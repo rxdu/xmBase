@@ -1,5 +1,5 @@
 /*
- * concurrency_message_buffer_example.cpp
+ * concurrency_message_slot_example.cpp
  *
  * The latest-value handoff: a sensor thread produces state at its own rate;
  * a consumer (control loop, UI, logger) always wants the NEWEST value and
@@ -8,10 +8,10 @@
  * This is the pattern the deprecated container/ring_buffer was often bent
  * into ("push samples, drain the queue, keep the last one") — paying queue
  * management, memory, and latency for values that were thrown away. A
- * MessageBuffer IS that pattern, directly: depth-1, wait-free writer, readers
+ * MessageSlot IS that pattern, directly: depth-1, wait-free writer, readers
  * retry only while a write is in flight, torn reads impossible.
  *
- * Contract highlights (see message_buffer.hpp for the memory-ordering proof):
+ * Contract highlights (see message_slot.hpp for the memory-ordering proof):
  *   - Store() never blocks and never fails: new value overwrites unread old.
  *   - Load() returns false only if nothing was ever stored.
  *   - T must be trivially copyable (the seqlock copies raw words).
@@ -23,7 +23,7 @@
 #include <cstdio>
 #include <thread>
 
-#include "xmbase/concurrency/message_buffer.hpp"
+#include "xmbase/concurrency/message_slot.hpp"
 
 namespace {
 
@@ -46,7 +46,7 @@ struct ImuState {
 }  // namespace
 
 int main() {
-  xmotion::concurrency::MessageBuffer<ImuState> slot;
+  xmotion::concurrency::MessageSlot<ImuState> slot;
   std::atomic<bool> running{true};
 
   // Producer: a "sensor" storing at full speed. Store() is wait-free —

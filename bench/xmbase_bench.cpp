@@ -25,6 +25,7 @@
 
 #include "xmbase/concurrency/spsc_queue.hpp"
 #include "xmbase/concurrency/message_buffer.hpp"
+#include "xmbase/concurrency/message_slot.hpp"
 #include "xmbase/concurrency/event_count.hpp"
 #include "xmbase/testing/alloc_probe.hpp"  // ONE translation unit per binary
 #include "xmbase/testing/bench_harness.hpp"
@@ -35,7 +36,8 @@ using xmotion::concurrency::SpscQueue;
 using xmotion::concurrency::EventCount;
 using xmotion::concurrency::HeapStorage;
 using xmotion::concurrency::MessageBuffer;
-using xmotion::concurrency::MutexMessageBuffer;
+using xmotion::concurrency::MessageSlot;
+using xmotion::concurrency::MutexMessageSlot;
 using xmotion::testing::AllocProbe;
 using xmotion::testing::BenchResult;
 using xmotion::testing::MeasureBatched;
@@ -89,7 +91,7 @@ void BenchLatestStore() {
   if (!Enabled(name)) {
     return;
   }
-  MessageBuffer<Payload<kBytes>, HeapStorage, EventCount> slot;
+  MessageSlot<Payload<kBytes>, HeapStorage, EventCount> slot;
   Payload<kBytes> value;
   value.words[0] = 1;
 
@@ -114,7 +116,7 @@ void BenchLatestLoad() {
   if (!Enabled(name)) {
     return;
   }
-  MessageBuffer<Payload<kBytes>, HeapStorage, EventCount> slot;
+  MessageSlot<Payload<kBytes>, HeapStorage, EventCount> slot;
   Payload<kBytes> value;
   value.words[0] = 7;
   slot.Store(value);
@@ -171,7 +173,7 @@ void BenchMutexLatestStoreLoad() {
   if (!Enabled(name)) {
     return;
   }
-  MutexMessageBuffer<Payload<64>> slot;
+  MutexMessageSlot<Payload<64>> slot;
   Payload<64> value;
   Payload<64> out;
 
@@ -209,6 +211,67 @@ void BenchWaiterNotifyUncontended() {
   Record(std::move(r));
 }
 
+// Depth-N store cost vs the N=1 row (micro/latest_store): the ring cursor
+// generalization must keep Store flat in N — same straight-line seqlock
+// write, only the cell address differs (a depth-1 ring IS MessageSlot's
+// inside, so the latest_store and N=1/N=4/N=16 rows share one shape).
+template <std::size_t kDepth>
+void BenchBufferStore() {
+  const std::string name =
+      "micro/message_buffer_store/64B/N" + std::to_string(kDepth);
+  if (!Enabled(name)) {
+    return;
+  }
+  MessageBuffer<Payload<64>, kDepth, HeapStorage, EventCount> hist;
+  Payload<64> value;
+  value.words[0] = 1;
+
+  BenchResult r;
+  r.name = name;
+  r.layer = "micro";
+  r.payload_bytes = 64;
+  r.batch = kBatch;
+  r.alloc_gated = true;
+  r.stats = MeasureBatched<AllocProbe>(
+      [&] {
+        ++value.words[0];
+        hist.Store(value);
+      },
+      kBatch, ScaledSamples(400), &r.allocations);
+  Record(std::move(r));
+}
+
+// Snapshot cost: newest-first copy of 8 of 16 (single pass, wait-free,
+// caller-provided storage — the quiescent cost; laps only shorten it).
+void BenchBufferSnapshot() {
+  const std::string name = "micro/message_buffer_snapshot/64B/N16/k8";
+  if (!Enabled(name)) {
+    return;
+  }
+  MessageBuffer<Payload<64>, 16, HeapStorage, EventCount> hist;
+  Payload<64> value;
+  for (std::uint64_t i = 1; i <= 16; ++i) {
+    value.words[0] = i;
+    hist.Store(value);
+  }
+  Payload<64> out[8];
+
+  BenchResult r;
+  r.name = name;
+  r.layer = "micro";
+  r.payload_bytes = 64;
+  r.batch = kBatch;
+  r.alloc_gated = true;
+  std::uint64_t sink = 0;
+  r.stats = MeasureBatched<AllocProbe>(
+      [&] { sink += hist.Snapshot(out, 8); }, kBatch, ScaledSamples(400),
+      &r.allocations);
+  if (sink == 0) {
+    r.notes = "sink zero (unexpected)";
+  }
+  Record(std::move(r));
+}
+
 // Store under continuous concurrent readers: the writer's wait-freedom
 // claim, measured (readers never slow the writer beyond cache effects).
 template <std::size_t kBytes>
@@ -218,7 +281,7 @@ void BenchLatestStoreContended() {
   if (!Enabled(name)) {
     return;
   }
-  MessageBuffer<Payload<kBytes>, HeapStorage, EventCount> slot;
+  MessageSlot<Payload<kBytes>, HeapStorage, EventCount> slot;
   Payload<kBytes> value;
   value.words[0] = 1;
   slot.Store(value);
@@ -289,6 +352,10 @@ int main(int argc, char** argv) {
   BenchLatestStore<64>();
   BenchLatestStore<256>();
   BenchLatestLoad<64>();
+  BenchBufferStore<1>();
+  BenchBufferStore<4>();
+  BenchBufferStore<16>();
+  BenchBufferSnapshot();
   BenchQueuePushPop<64>();
   BenchQueuePushPop<256>();
   BenchMutexLatestStoreLoad();

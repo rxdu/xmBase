@@ -12,7 +12,7 @@
 
 #include "gtest/gtest.h"
 #include "xmbase/concurrency/spsc_queue.hpp"
-#include "xmbase/concurrency/message_buffer.hpp"
+#include "xmbase/concurrency/message_slot.hpp"
 #include "xmbase/concurrency/storage.hpp"
 
 namespace {
@@ -20,7 +20,7 @@ namespace {
 using xmotion::concurrency::SpscQueue;
 using xmotion::concurrency::EventCount;
 using xmotion::concurrency::HeapStorage;
-using xmotion::concurrency::MessageBuffer;
+using xmotion::concurrency::MessageSlot;
 using xmotion::concurrency::RegionStorage;
 
 // Padding-free by construction: the equivalence checks compare raw bytes,
@@ -39,9 +39,9 @@ static_assert(sizeof(Value) == 3 * sizeof(std::uint64_t),
 
 // Identical Store/Load sequences on both placements yield byte-identical
 // results — the seqlock algorithm is placement-blind.
-TEST(ConcurrencyPlacement, MessageBufferEquivalentOnHeapAndRegion) {
-  using HeapSlot = MessageBuffer<Value, HeapStorage, EventCount>;
-  using RegionSlot = MessageBuffer<Value, RegionStorage, EventCount>;
+TEST(ConcurrencyPlacement, MessageSlotEquivalentOnHeapAndRegion) {
+  using HeapSlot = MessageSlot<Value, HeapStorage, EventCount>;
+  using RegionSlot = MessageSlot<Value, RegionStorage, EventCount>;
 
   alignas(64) unsigned char region[RegionSlot::StorageBytes() + 64] = {};
   HeapSlot heap_slot;
@@ -118,7 +118,7 @@ TEST(ConcurrencyPlacement, RegionLayoutIsDeterministic) {
 // Warm start: an attaching view (initialize == false) must observe the data
 // the initializing view wrote — attaching never re-zeros.
 TEST(ConcurrencyPlacement, AttachingViewPreservesLiveData) {
-  using Slot = MessageBuffer<Value, RegionStorage, EventCount>;
+  using Slot = MessageSlot<Value, RegionStorage, EventCount>;
   alignas(64) unsigned char region[Slot::StorageBytes() + 64] = {};
 
   Slot creator(RegionStorage(region, sizeof(region), true));

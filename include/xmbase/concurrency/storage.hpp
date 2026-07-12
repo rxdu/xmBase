@@ -2,7 +2,8 @@
  * storage.hpp
  *
  * Storage policy: where a concurrency primitive's cells live. The slot and
- * ring algorithms (message_buffer.hpp, spsc_queue.hpp) never say `new` — they
+ * ring algorithms (detail/seqlock_ring.hpp behind message_slot.hpp /
+ * message_buffer.hpp, and spsc_queue.hpp) never say `new` — they
  * ask their Storage for storage, sized once at wiring time; nothing grows
  * afterwards.
  *
@@ -10,7 +11,8 @@
  * Requirement/decision IDs in comments (R7, P0b, P1b, M2/M4) are xmMessaging's,
  * retained so the rationale keeps its provenance.
  *
- * Policy contract — what MessageBuffer / SpscQueue require of a Storage P:
+ * Policy contract — what the seqlock ring (MessageSlot / MessageBuffer) and
+ * SpscQueue require of a Storage P:
  *
  *   - `template <typename U> using SingleHandle` / `ArrayHandle`: handle
  *     types for one placed U / a placed U[]; must be dereferenceable like
