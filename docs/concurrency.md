@@ -32,7 +32,7 @@ Pick by **read semantics first**, payload shape second:
 | `SpscQueue` drop-oldest overflow policy | lossy stream: overwrite the oldest instead of rejecting the newest (quickviz `RingBuffer`'s semantic, generalized; drops counted per the no-silent-loss doctrine) | first family consumer wanting lossy-FIFO (viz bridge chart feed is the candidate) |
 | `MpscQueue<T>` | bounded multi-producer fan-in, single consumer | xmMessaging shared-ownership publishers (mutex-serialized today by declared design; P1 TODO) |
 | `FixedPool<T>` | wiring-time-sized slot pool, allocation-free loan/return | promote xmMessaging's `LoanPool` when a second consumer appears |
-| `EventHub` (working name) | component-internal typed eventing: instance-based (no singleton), `Subscribe<T>` compile-time typed, LOSSLESS delivery, bounded (SpscQueue + EventCount underneath); sync dispatch on the caller's thread, async mode's thread-ownership question (owned worker vs thread-lending) decided by the first consumer | nav multi-threaded processing, or a GUI-style app on xmBase without quickviz |
+| `EventHub` | component-internal typed eventing — **fully designed** ([event_hub.md](event_hub.md): instance-based, type-as-channel, lossless-or-refused with counted refusals, bounded inboxes, thread-lending drain, RAII subscriptions; composition of the built primitives, nothing new to verify) | nav multi-threaded processing, or a GUI-style app on xmBase without quickviz |
 
 Reserving an entry means: the name, the one-line contract, and the row in this table. No headers, no code, no tests until the consumer is real — then the implementation arrives WITH its verification (gate 2) like everything else here.
 
