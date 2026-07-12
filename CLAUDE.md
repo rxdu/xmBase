@@ -7,8 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 xmBase is the foundation library of the XMotion family — the shared substrate every other component builds on. Because it is depended on by *all* components, it deliberately contains only what is universal across the whole family:
 - **Telemetry API + logging**: the stateless XMotion instrumentation surface (`xmbase/telemetry/`) with a built-in dependency-free console binding — the `XM_*` macros are both the logging front-end and the telemetry `event()` verb
 - **Common types**: the shared geometry/primitive type vocabulary (`xmbase/types/`, namespace `xmotion`) spoken by both the driver layer (xmDriver) and the motion layer (xmNavigation)
+- **Concurrency primitives** (`xmbase/concurrency/`, namespace `xmotion::concurrency`): the family's verified seqlock LatestSlot, SPSC BoundedQueue, waiter and placement policies — promoted from xmMessaging per ADR 0007
+- **Testing/bench toolkit** (`xmbase/testing/`, namespace `xmotion::testing`): the unified family measurement harness + allocation probe — test/bench tier ONLY, never linked by runtime code
 
-It is exposed as a **single** CMake target, `xmotion::xmBase`. Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmDriver, xmNavigation), not here.
+It is exposed as **two** CMake targets since 0.5.0 (ADR 0007 target split): `xmotion::xmBase` — the Eigen-FREE core (default; telemetry, wire-tier types, serialization, concurrency, testing) — and `xmotion::xmBaseGeometry` — the Eigen geometry tier (`types/geometry.hpp`, `types/quantities.hpp`), linked *in addition to* the core by geometry consumers (xmDriver, xmNavigation). Anything particular to an upper layer — driver/control interfaces, motion-specific types — lives in its owning component (xmDriver, xmNavigation), not here.
 
 The library is designed to be used either as a standalone project or as a module embedded in other projects.
 
@@ -46,6 +48,7 @@ ctest -R ConsoleBinding --output-on-failure
 - `BUILD_TESTING`: Build tests (default: OFF)
 - `XMOTION_DEV_MODE`: Development mode, forces building tests (default: OFF)
 - `ENABLE_LOGGING`: Compile the built-in console binding (default: ON; OFF = no binding auto-adopts)
+- `XMBASE_GEOMETRY`: Build the Eigen geometry tier target `xmBaseGeometry` (default: ON; OFF = core-only build, the Eigen-free proof configuration — no Eigen needed anywhere)
 - `STATIC_CHECK`: Enable cppcheck static analysis (default: OFF)
 
 ### Dependencies
@@ -53,6 +56,8 @@ ctest -R ConsoleBinding --output-on-failure
 **Required:**
 - CMake >= 3.10.2
 - C++17 compiler
+
+**Geometry tier only** (`XMBASE_GEOMETRY=ON`, the default):
 - Eigen3
 
 **Install on Ubuntu:**
@@ -60,27 +65,29 @@ ctest -R ConsoleBinding --output-on-failure
 sudo apt-get install libeigen3-dev
 ```
 
-There are no other third-party runtime dependencies — the console binding is libc/libstdc++ only.
+There are no other third-party runtime dependencies — the console binding is libc/libstdc++ only, and the core target needs no Eigen.
 
 ## Architecture
 
 ### Module Structure
 
-Everything compiles into one target, `xmotion::xmBase`. Headers live under `include/xmbase/`; the compiled telemetry bindings under `src/`.
+Headers live under `include/xmbase/`; the compiled telemetry bindings under `src/`. Everything except the geometry tier compiles into the core target `xmotion::xmBase`; the geometry tier is the header-only `xmotion::xmBaseGeometry` (which links the core plus `Eigen3::Eigen`).
 
 1. **telemetry/** (`include/xmbase/telemetry/`): the stateless XMotion instrumentation surface (ADR 0004) — 4 verbs (`event`/`metric`/`scope`/`signal`) + health, context spine (TraceId/Context/NewTrace/Inject/Extract), install-once binding seam (`binding.hpp`). Compiled parts: `src/telemetry_unbound.cpp` (fallback + adoption latch) and `src/telemetry_console_binding.cpp` (the built-in dependency-free console binding, auto-adopted by default).
-2. **types/** (`include/xmbase/types/`): Header-only common type vocabulary (namespace `xmotion`)
-   - Granular headers: `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `stamped.hpp` (`Stamped<T>`).
-   - `types.hpp`: umbrella that pulls in all of the above.
-   - `quantities.hpp`: **opt-in** strong-typed quantities (tagged `Vec3`: `Force`, `Torque`, `LinearVelocity`, …) — distinct types so the compiler catches quantity mix-ups; reach Eigen via `.vec()`. Not included by the umbrella.
-   - `base_types.hpp` / `geometry_types.hpp`: compatibility facades re-exporting the granular headers (legacy include paths used by xmDriver/xmNavigation).
+2. **types/** (`include/xmbase/types/`): Header-only common type vocabulary (namespace `xmotion`), split across the two targets
+   - Wire tier (CORE target, Eigen-free): `scalar.hpp` (enum base), `time.hpp` (`Clock`/`Timestamp`/`Duration`), `vector.hpp` (POD `vector3_t`/`vector4_t` for the wire/driver layer), `stamped.hpp` (`Stamped<T>`), and the `base_types.hpp` facade (bundles exactly those).
+   - Geometry tier (`xmBaseGeometry`): `geometry.hpp` (Eigen-backed pose/velocity/joint/wrench + `Pose`/`Twist`/`Odometry`), `quantities.hpp` (**opt-in** strong-typed quantities — tagged `Vec3`: `Force`, `Torque`, `LinearVelocity`, …; reach Eigen via `.vec()`; not included by the umbrella), the `geometry_types.hpp` facade, and `types.hpp` — the umbrella pulls geometry and is therefore a GEOMETRY-TIER header (documented in the header; core consumers include granular headers instead).
    - Conventions: SI units, radians, intrinsic Z-Y-X Euler, Hamilton quaternions; all composite types default-initialize to identity/zero.
    - These are the types shared by *both* the driver and motion layers; layer-specific types (e.g. trajectories) live in those layers.
+3. **concurrency/** (`include/xmbase/concurrency/`, namespace `xmotion::concurrency`): the family's verified concurrency primitives, promoted from xmMessaging `detail/` at ADR 0007 W1 — `LatestSlot` (wait-free seqlock depth-1 exchange, Boehm construction), `MutexLatestSlot` (rich-type fallback), `BoundedQueue` (lock-free SPSC ring), `FutexWaiter`/`CondvarWaiter` (eventcount parking), `HeapPlacement`/`RegionPlacement` (the storage seam that lets one algorithm serve heap and shared-region cells). These are a MOVE of verified code: do not "improve" the algorithms; the memory-ordering proofs in the headers are load-bearing and any change re-runs the full TSan/aarch64 verification.
+4. **testing/** (`include/xmbase/testing/`, namespace `xmotion::testing`): the unified family bench harness (`bench_harness.hpp` — tail percentiles, batched measurement loops, hardware context, JSON reports) and allocation probe (`alloc_probe.hpp` — include from exactly ONE translation unit per binary; it replaces global operator new/delete). Test/bench tier ONLY — never link it from runtime code. JSON field names `name`/`p50`/`p99`/`max` are load-bearing (xmMessaging's `compare.py` reads them).
+5. **container/ + event/**: DEPRECATED-FOR-REMOVAL at 0.6.0 (ADR 0007) — still present and compiled, but new code must not add includes.
 
 ### Key Design Patterns
 
-**Single-target foundation:**
-- `xmBase` is one STATIC library aggregating the telemetry API + the common types; consumers `find_package(xmBase)` and link `xmotion::xmBase`.
+**Two-target foundation (0.5.0, ADR 0007):**
+- `xmBase` is the STATIC core library (telemetry API + wire-tier types + serialization + concurrency + testing) with NO Eigen anywhere in its interface; `xmBaseGeometry` is a header-only INTERFACE target carrying the Eigen tier. Consumers `find_package(xmBase)` and link `xmotion::xmBase` (plus `xmotion::xmBaseGeometry` if they use geometry types; `COMPONENTS geometry` gives a clear configure-time diagnostic when Eigen is missing).
+- The core's Eigen-freedom is CI-enforced (the `eigen-free-core` job builds with no libeigen3-dev installed). Never add an Eigen include to a core-tier header.
 - There are intentionally no driver/control interfaces here — they belong to xmDriver's HAL. Keeping xmBase free of upper-layer specifics is a load-bearing design rule, not an accident.
 
 **Telemetry API (xmbase/telemetry/, ADR 0004):** components instrument against this API only; the runtime machinery lives in the optional (privately maintained) xmTelemetry SDK, bound through the install-once seam. Binding states: console binding auto-adopted by default (full-severity console logging, dependency-free); explicit `InstallBinding` — including `nullptr` — is authoritative and disables auto-adoption; with no binding, events ≥ Warn and non-Ok health go to stderr, everything else no-ops. Do NOT put machinery under `xmbase/telemetry/` — that directory is the stateless API tier by definition. **Never document SDK internals in this repo** — public docs describe the API and the SDK's guarantees, not its mechanisms.
@@ -113,7 +120,7 @@ XM_DEBUG_STREAM("Position: " << x << ", " << y);   // non-RT convenience
 
 ### GitHub Actions Workflows
 
-**C++ Workflow** (`.github/workflows/cpp.yml`): ubuntu-22.04 + ubuntu-24.04; separate build and test jobs (`-DBUILD_TESTING=ON`); sanitizer lanes (ASan/UBSan, TSan).
+**C++ Workflow** (`.github/workflows/cpp.yml`): ubuntu-22.04 + ubuntu-24.04; separate build and test jobs (`-DBUILD_TESTING=ON`); `ubuntu-24.04-arm` build+test (weak memory model); `eigen-free-core` (no Eigen installed, `-DXMBASE_GEOMETRY=OFF` — the core Eigen-freedom proof); sanitizer lanes (ASan/UBSan full suite; TSan on the console-binding + concurrency suites, with the documented `-Wno-tsan` for GCC 13's fence warning).
 
 **ROS Workflow** (`.github/workflows/ros.yml`): builds with ROS Humble and Jazzy via colcon.
 
@@ -135,9 +142,10 @@ Add to xmBase only things every component could share: the instrumentation surfa
 ### Testing
 
 - Tests use GoogleTest (bundled in `third_party/googletest`)
-- Test files live in the top-level `test/` directory (e.g. `test/test_logging.cpp` — the console-binding suite; `test/test_telemetry_api.cpp` — the seam/ABI contract)
-- Add new tests to `test/CMakeLists.txt`
-- The console binding's concurrency test runs under TSan in CI; the telemetry suites run under ASan/UBSan
+- Test files live in the top-level `test/` directory (e.g. `test/test_logging.cpp` — the console-binding suite; `test/test_telemetry_api.cpp` — the seam/ABI contract; `test/test_concurrency_*.cpp` — the primitive verification suite)
+- Add new tests to `test/CMakeLists.txt`; core-tier tests link `xmBase` only, geometry-tier tests link `xmBaseGeometry` (guarded by `if (TARGET xmBaseGeometry)`)
+- The console-binding and concurrency suites run under TSan in CI (gtest suite names carrying "Concurrency" are what the TSan ctest filter selects — keep the naming); the full suite runs under ASan/UBSan
+- Primitive benchmarks live in `bench/` (`xmbase_bench`, built with tests; `--smoke` run registered with ctest; JSON report via `--out`)
 - All test executables output to `build/bin/`
 
 ### Build Modes
@@ -163,7 +171,7 @@ cpack
 Package details:
 - Package name: libxmotion-base
 - Default install prefix: /opt/xmotion
-- Exports a single CMake target, `xmotion::xmBase` (via `find_package(xmBase)`)
+- Exports two CMake targets, `xmotion::xmBase` (Eigen-free core) and `xmotion::xmBaseGeometry` (Eigen tier), via `find_package(xmBase)` — one repo, one release, one deb
 - Includes CMake config files for find_package() support
 
 ## ROS Integration

@@ -1,10 +1,43 @@
 include(CMakeFindDependencyMacro)
 
-# Re-discover the dependencies that xmBase's public (imported) targets reference,
-# so downstream find_package(xmBase) consumers get a usable xmotion::xmBase
-# target. Consumers link xmotion::xmBase.
+# Re-discover the dependencies that xmBase's public (imported) targets
+# reference, so downstream find_package(xmBase) consumers get usable targets.
+#
+# Two targets since 0.5.0 (ADR 0007 target split):
+#   - xmotion::xmBase          — the Eigen-FREE core (needs Threads only)
+#   - xmotion::xmBaseGeometry  — the Eigen geometry tier (needs Eigen3)
 find_dependency(Threads REQUIRED)
-find_dependency(Eigen3 REQUIRED NO_MODULE)   # xmotion::xmBase links Eigen3::Eigen
+
+# Whether the installed tree exported the geometry target (packaging builds
+# always do; a core-only build with -DXMBASE_GEOMETRY=OFF does not).
+set(_xmbase_has_geometry @XMBASE_GEOMETRY@)
+
+# Eigen3 belongs to the OPTIONAL geometry target only. Both targets live in
+# ONE export set (no COMPONENTS bookkeeping needed to link either), so Eigen3
+# is looked up QUIETLY: core-only consumers configure with zero Eigen on the
+# system. A consumer that links xmotion::xmBaseGeometry either has Eigen3
+# discoverable (this quiet find resolves it) or should request
+#   find_package(xmBase REQUIRED COMPONENTS geometry)
+# to turn a missing Eigen3 (or a core-only install) into a clear
+# configure-time diagnostic instead of a generate-time one.
+if (_xmbase_has_geometry)
+  find_package(Eigen3 QUIET NO_MODULE)
+endif ()
+if ("geometry" IN_LIST xmBase_FIND_COMPONENTS)
+  if (NOT _xmbase_has_geometry)
+    set(xmBase_FOUND FALSE)
+    set(xmBase_NOT_FOUND_MESSAGE
+        "xmBase 'geometry' component requested, but this xmBase was installed core-only (XMBASE_GEOMETRY=OFF)")
+    return()
+  endif ()
+  if (NOT Eigen3_FOUND)
+    set(xmBase_FOUND FALSE)
+    set(xmBase_NOT_FOUND_MESSAGE
+        "xmBase 'geometry' component requires Eigen3 (libeigen3-dev), which was not found")
+    return()
+  endif ()
+endif ()
+unset(_xmbase_has_geometry)
 
 # Add the targets file
 include("${CMAKE_CURRENT_LIST_DIR}/xmBaseTargets.cmake")

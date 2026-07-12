@@ -1,6 +1,13 @@
 /*
  * ring_buffer.hpp
  *
+ * DEPRECATED-FOR-REMOVAL at xmBase 0.6.0 (ADR 0007): the Σ-era container/
+ * tier is superseded by the verified primitives in xmbase/concurrency/.
+ * This byte-stream ring's remaining consumer (xmDriver async_port, which
+ * needs burst span I/O and peek — a different shape from the SPSC record
+ * queue) repatriates the type at migration wave W3. New code must not add
+ * includes of this header.
+ *
  * General-purpose, mutex-guarded circular buffer for the xMotion family. A
  * fixed-capacity (power-of-two) ring with single/burst read, peek, and an
  * optional overwrite-oldest-on-full policy. Thread-safe for concurrent

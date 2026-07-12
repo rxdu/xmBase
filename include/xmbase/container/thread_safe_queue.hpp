@@ -3,6 +3,11 @@
  * @date 10/10/24
  * @brief
  *
+ * DEPRECATED-FOR-REMOVAL at xmBase 0.6.0 (ADR 0007): superseded by the
+ * verified primitives in xmbase/concurrency/ (BoundedQueue for SPSC rings;
+ * callers needing a blocking multi-producer queue keep a local copy in the
+ * owning component). New code must not add includes of this header.
+ *
  * @copyright Copyright (c) 2024 Ruixiang Du (rdu)
  */
 #ifndef XMBASE_CONTAINER_THREAD_SAFE_QUEUE_HPP

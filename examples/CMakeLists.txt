@@ -9,8 +9,12 @@ target_link_libraries(xm_logging_example xmBase)
 
 
 
-add_executable(types_example types_example.cpp)
-target_link_libraries(types_example xmBase)
+# types_example demonstrates the geometry tier (Eigen) — skipped in
+# core-only builds (-DXMBASE_GEOMETRY=OFF).
+if (TARGET xmBaseGeometry)
+  add_executable(types_example types_example.cpp)
+  target_link_libraries(types_example xmBaseGeometry)
+endif ()
 
 add_executable(instrumented_control_loop_example instrumented_control_loop_example.cpp)
 target_link_libraries(instrumented_control_loop_example xmBase)
