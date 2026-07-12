@@ -88,6 +88,11 @@ inline void CpuRelax() noexcept {
 
 template <typename T, typename Storage = HeapStorage,
           typename EventCountPolicy = CondvarEventCount>
+// See docs/concurrency.md for the family buffer taxonomy (which type to
+// use when) and the facades-over-cores structure; depth-1 here is a contract
+// choice, not a mechanism limit — the seqlock generalizes to N-deep
+// newest-first snapshots, reserved until a consumer materializes.
+//
 // NAMING NOTE — not a FreeRTOS "Message Buffer": FreeRTOS's primitive of
 // that name is a variable-length FIFO stream with consuming reads. This
 // type is the opposite on both counts: a SINGLE-SLOT message container —
