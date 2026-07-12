@@ -1,11 +1,12 @@
 /*
- * test_types.cpp — properties of the common type vocabulary.
+ * test_types.cpp — properties of the GEOMETRY tier of the type vocabulary
+ * (Eigen-backed types + opt-in quantities). Links xmBaseGeometry; the
+ * Eigen-free wire tier is covered by test_types_core.cpp, which links only
+ * the core target (the 0.5.0 target split).
  *
  * Focus on the things the restructure is meant to guarantee:
  *   - default-construction is well-defined (no garbage poses/vectors),
  *   - the legacy include paths and names still resolve (μ/∇ source compat),
- *   - the time vocabulary is monotonic,
- *   - Stamped<T> pairs a value with a timestamp,
  *   - opt-in quantities are distinct types with closed arithmetic.
  *
  * Copyright (c) 2026 Ruixiang Du (rdu)
@@ -25,16 +26,6 @@
 namespace {
 
 // --- default-initialization (the bug class this restructure removes) --------
-
-TEST(TypesTest, PodVectorsDefaultToZero) {
-  xmotion::Vector3f v3{};
-  EXPECT_FLOAT_EQ(v3.x, 0.0f);
-  EXPECT_FLOAT_EQ(v3.y, 0.0f);
-  EXPECT_FLOAT_EQ(v3.z, 0.0f);
-
-  xmotion::Vector4d v4{};
-  EXPECT_DOUBLE_EQ(v4.w, 0.0);
-}
 
 TEST(TypesTest, PoseDefaultsToIdentityNotGarbage) {
   xmotion::Pose p;  // default-constructed
@@ -72,26 +63,6 @@ TEST(TypesTest, AggregateInitStillWorks) {
   EXPECT_DOUBLE_EQ(p.orientation.w(), 1.0);
   xmotion::Twist t = {{0, 0, 0}, {0, 0, 0}};
   EXPECT_TRUE(t.linear.isZero());
-}
-
-// --- time vocabulary --------------------------------------------------------
-
-TEST(TypesTest, TimeIsMonotonic) {
-  const xmotion::Timestamp a = xmotion::Now();
-  const xmotion::Timestamp b = xmotion::Now();
-  EXPECT_GE(b, a);
-  // Clock alias is monotonic (steady), and the legacy spelling still resolves.
-  static_assert(std::is_same<xmotion::RSClock, xmotion::Clock>::value,
-                "RSClock must alias Clock for source compatibility");
-  static_assert(xmotion::Clock::is_steady, "Clock must be a steady clock");
-}
-
-// --- Stamped<T> -------------------------------------------------------------
-
-TEST(TypesTest, StampedPairsValueWithTime) {
-  auto s = xmotion::StampNow(42);
-  EXPECT_EQ(s.value, 42);
-  EXPECT_GE(s.stamp, xmotion::Timestamp{});
 }
 
 // --- opt-in strong quantities ----------------------------------------------

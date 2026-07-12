@@ -3,8 +3,8 @@ name: C++
 on:
   push:
     branches: [ main, devel ]
+  # No branch filter: stacked PRs (feature -> feature) must get CI too.
   pull_request:
-    branches: [ main, devel ]
 
 env:
   BUILD_TYPE: Release
@@ -61,9 +61,60 @@ jobs:
         shell: bash
         run: ctest --output-on-failure --no-tests=error
 
-  # Sanitizer coverage. ASan+UBSan runs the whole suite; TSan is scoped to the
-  # console-binding tests (the concurrent-emit / no-mid-line-interleaving
-  # contract is the hand-rolled concurrency that needs race checking).
+  # aarch64 coverage: the seqlock/queue fence pairings must hold on a weak
+  # memory model, not just x86's TSO — build + full test run on arm64.
+  test-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libeigen3-dev
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      - name: Configure CMake
+        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DXMOTION_WERROR=ON
+      - name: Build
+        shell: bash
+        run: cmake --build build -j --config $BUILD_TYPE
+      - name: Test
+        working-directory: build
+        shell: bash
+        run: ctest --output-on-failure --no-tests=error
+
+  # The Eigen-free-core proof (0.5.0 target split, ADR 0007): no libeigen3-dev
+  # installed, geometry tier off — the core target, its tests, and the bench
+  # binary must configure and build with zero Eigen anywhere on the system.
+  eigen-free-core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      - name: Configure CMake (no Eigen installed, geometry OFF)
+        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTING=ON -DXMBASE_GEOMETRY=OFF -DXMOTION_WERROR=ON
+      - name: Build
+        shell: bash
+        run: cmake --build build -j --config $BUILD_TYPE
+      - name: Test
+        working-directory: build
+        shell: bash
+        run: ctest --output-on-failure --no-tests=error
+
+  # Sanitizer coverage. ASan+UBSan runs the whole suite; TSan is scoped to
+  # the hand-rolled concurrency that needs race checking: the console-binding
+  # concurrent-emit contract and the xmbase/concurrency primitive suite
+  # (seqlock tear check, SPSC conservation, waiter hammer).
+  #
+  # -Wno-tsan (TSan lane only): GCC >= 13 warns that atomic_thread_fence is
+  # not instrumented by TSan. The seqlock is deliberately the Boehm
+  # construction — relaxed ATOMIC data words + fences — so TSan's race
+  # detection is sound through the atomic accesses without modeling the
+  # fences; the warning flags a known, accepted limitation, and under
+  # XMOTION_WERROR it would otherwise break the lane (the xmMessaging
+  # sanitize-block pattern; see message_buffer.hpp ordering notes).
   sanitizers:
     name: sanitizers (${{ matrix.name }})
     runs-on: ubuntu-24.04
@@ -77,10 +128,10 @@ jobs:
             target: ""
             filter: ""
           - name: tsan
-            flags: "-fsanitize=thread -O1 -g"
+            flags: "-fsanitize=thread -O1 -g -Wno-tsan"
             opts: "TSAN_OPTIONS=halt_on_error=1"
-            target: "--target test_logging"
-            filter: "-R ConsoleBinding"
+            target: ""
+            filter: "-R 'ConsoleBinding|Concurrency'"
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
@@ -100,3 +151,35 @@ jobs:
         shell: bash
         working-directory: build
         run: ${{ matrix.opts }} ctest --output-on-failure --no-tests=error ${{ matrix.filter }}
+
+  # Valgrind memcheck on the concurrency suites — the independent memory
+  # oracle beside ASan/LSan (different detection mechanism, catches what
+  # instrumentation misses and vice versa). Scoped to the lock-free tier:
+  # that is where hand-rolled memory handling lives. The two 2M-op stress
+  # tests are excluded here only (valgrind's ~50x slowdown); TSan/ASan run
+  # them at full scale in their own jobs.
+  valgrind:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libeigen3-dev valgrind
+      - name: Configure CMake (RelWithDebInfo for usable stacks)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+      - name: Build concurrency suites
+        run: cmake --build build -j"$(nproc)" --target
+          test_concurrency_lifecycle test_concurrency_message_slot
+          test_concurrency_message_buffer test_concurrency_spsc_queue
+          test_concurrency_event_count test_concurrency_storage
+      - name: Memcheck (full suites)
+        run: |
+          for t in test_concurrency_lifecycle test_concurrency_message_slot                    test_concurrency_event_count test_concurrency_storage; do
+            valgrind --error-exitcode=99 --leak-check=full               --errors-for-leak-kinds=definite,indirect -q               ./build/bin/$t
+          done
+      - name: Memcheck (stress-filtered suites)
+        run: |
+          valgrind --error-exitcode=99 --leak-check=full             --errors-for-leak-kinds=definite,indirect -q             ./build/bin/test_concurrency_spsc_queue             --gtest_filter=-ConcurrencySpscQueue.SpscConservationStress
+          valgrind --error-exitcode=99 --leak-check=full             --errors-for-leak-kinds=definite,indirect -q             ./build/bin/test_concurrency_message_buffer             --gtest_filter=-ConcurrencyMessageBuffer.WriterLapShortensOnlyTheTail

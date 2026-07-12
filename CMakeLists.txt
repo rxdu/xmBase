@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2)
-project(xmBase VERSION 0.4.0)
+project(xmBase VERSION 0.5.0)
 
 message(STATUS "------------------------------------------------")
 if (PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
@@ -24,6 +24,13 @@ option(STATIC_CHECK "Enable static check" OFF)
 option(XMOTION_DEV_MODE "Development mode forces building tests" OFF)
 
 option(ENABLE_LOGGING "Enable the built-in console logging binding" ON)
+# The 0.5.0 target split (ADR 0007): the core xmBase target is Eigen-FREE;
+# the Eigen-backed geometry tier (types/geometry.hpp + quantities.hpp) lives
+# behind the separate xmBaseGeometry target. OFF skips the geometry target
+# (and its tests/examples) entirely — the configuration used to PROVE the
+# core builds with no Eigen on the system. Packaging/release builds keep the
+# default ON so the installed package always exports both targets.
+option(XMBASE_GEOMETRY "Build the Eigen-backed geometry tier target" ON)
 # CI hygiene: strict warnings on first-party code (third_party is added
 # before this takes effect and stays untouched).
 option(XMOTION_WERROR "Treat warnings as errors (-Wall -Wextra -Werror)" OFF)
@@ -109,18 +116,26 @@ if(XMOTION_WERROR)
 endif()
 
 ## Build the xmBase library from the include/ + src/ layout
-find_package(Eigen3 REQUIRED NO_MODULE)
+#
+# Two targets since 0.5.0 (ADR 0007 target split):
+#   - xmBase (xmotion::xmBase): the Eigen-FREE core — types wire tier
+#     (scalar/time/vector/stamped), telemetry, serialization, concurrency,
+#     and testing. (The legacy container/ and event/ modules were removed
+#     at 0.5.0: ring_buffer repatriated to xmDriver async_port, its only
+#     consumer; the rest had zero consumers — see CHANGELOG + ADR 0007.)
+#   - xmBaseGeometry (xmotion::xmBaseGeometry): the Eigen geometry tier —
+#     types/geometry.hpp + quantities.hpp consumers link this in addition
+#     to the core. Header-only (INTERFACE): it exists to carry the Eigen3
+#     usage requirement, so core consumers configure/build with zero Eigen.
 find_package(Threads REQUIRED)
 
 add_library(xmBase STATIC
     src/telemetry_unbound.cpp
-    src/telemetry_console_binding.cpp
-    src/event_dispatcher.cpp
-    src/async_event_dispatcher.cpp)
+    src/telemetry_console_binding.cpp)
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-target_link_libraries(xmBase PUBLIC Eigen3::Eigen Threads::Threads)
+target_link_libraries(xmBase PUBLIC Threads::Threads)
 if (ENABLE_LOGGING)
   target_compile_definitions(xmBase PUBLIC ENABLE_LOGGING)
 endif ()
@@ -131,8 +146,20 @@ install(TARGETS xmBase EXPORT xmBaseTargets
     INCLUDES DESTINATION include)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+if (XMBASE_GEOMETRY)
+  find_package(Eigen3 REQUIRED NO_MODULE)
+  add_library(xmBaseGeometry INTERFACE)
+  target_link_libraries(xmBaseGeometry INTERFACE xmBase Eigen3::Eigen)
+  add_library(xmotion::xmBaseGeometry ALIAS xmBaseGeometry)
+  install(TARGETS xmBaseGeometry EXPORT xmBaseTargets)
+  message(STATUS "xmBase geometry tier (xmBaseGeometry, Eigen3): enabled")
+else ()
+  message(STATUS "xmBase geometry tier (xmBaseGeometry, Eigen3): SKIPPED (core-only build)")
+endif ()
+
 if (BUILD_TESTS)
   add_subdirectory(test)
+  add_subdirectory(bench)
 endif ()
 if (BUILD_EXAMPLES OR XMOTION_DEV_MODE)
   add_subdirectory(examples)
