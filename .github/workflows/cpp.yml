@@ -3,8 +3,8 @@ name: C++
 on:
   push:
     branches: [ main, devel ]
+  # No branch filter: stacked PRs (feature -> feature) must get CI too.
   pull_request:
-    branches: [ main, devel ]
 
 env:
   BUILD_TYPE: Release
@@ -151,3 +151,35 @@ jobs:
         shell: bash
         working-directory: build
         run: ${{ matrix.opts }} ctest --output-on-failure --no-tests=error ${{ matrix.filter }}
+
+  # Valgrind memcheck on the concurrency suites — the independent memory
+  # oracle beside ASan/LSan (different detection mechanism, catches what
+  # instrumentation misses and vice versa). Scoped to the lock-free tier:
+  # that is where hand-rolled memory handling lives. The two 2M-op stress
+  # tests are excluded here only (valgrind's ~50x slowdown); TSan/ASan run
+  # them at full scale in their own jobs.
+  valgrind:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libeigen3-dev valgrind
+      - name: Configure CMake (RelWithDebInfo for usable stacks)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+      - name: Build concurrency suites
+        run: cmake --build build -j"$(nproc)" --target
+          test_concurrency_lifecycle test_concurrency_message_slot
+          test_concurrency_message_buffer test_concurrency_spsc_queue
+          test_concurrency_event_count test_concurrency_storage
+      - name: Memcheck (full suites)
+        run: |
+          for t in test_concurrency_lifecycle test_concurrency_message_slot                    test_concurrency_event_count test_concurrency_storage; do
+            valgrind --error-exitcode=99 --leak-check=full               --errors-for-leak-kinds=definite,indirect -q               ./build/bin/$t
+          done
+      - name: Memcheck (stress-filtered suites)
+        run: |
+          valgrind --error-exitcode=99 --leak-check=full             --errors-for-leak-kinds=definite,indirect -q             ./build/bin/test_concurrency_spsc_queue             --gtest_filter=-ConcurrencySpscQueue.SpscConservationStress
+          valgrind --error-exitcode=99 --leak-check=full             --errors-for-leak-kinds=definite,indirect -q             ./build/bin/test_concurrency_message_buffer             --gtest_filter=-ConcurrencyMessageBuffer.WriterLapShortensOnlyTheTail
