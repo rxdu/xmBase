@@ -2,6 +2,12 @@
 
 Earlier releases (≤ v0.4.0) were recorded as GitHub release notes only; this file is the repo-side record from v0.5.0 on (the xmMessaging convention).
 
+## [Unreleased]
+
+### Added
+
+- **`xmbase/telemetry/csv_signal_recorder.hpp`** — `CsvSignalRecorder`, the first concrete recording-plane sink for the `signal` verb. It composes on top of the built-in console binding (copies the table, overrides `get_signal`/`emit_signal`) so installing it starts recording high-rate `SignalChannel<T>` samples to per-channel CSV (`<dir>/<channel>.csv`, `ts_ns` + registered columns) while events, metrics, spans, and health keep flowing to the console unchanged. Because `emit_signal` is type-erased, each channel declares its schema via `Register<T>(name, columns, extract)`; the template folds `T` into a `void*`-based decoder the sink calls per sample. Bench/diagnostic scope (bring-up characterization, actuator response capture) — mutex-guarded synchronous file writes, thread-safe but not wait-free, and single-instance (the active binding is a process singleton); the self-describing MCAP channel story still lands at P3. Eigen-free (core tier); `test_telemetry_recorder` covers the register→publish→read-back round trip, the drop path (unregistered / size-mismatched channel), and event delegation.
+
 ## v0.5.0 — 2026-07-12
 
 The ADR 0007 W1 foundation wave: the verified concurrency primitives move in, the family testing harness is unified here, and the Eigen boundary becomes a formal target split.

@@ -131,7 +131,8 @@ find_package(Threads REQUIRED)
 
 add_library(xmBase STATIC
     src/telemetry_unbound.cpp
-    src/telemetry_console_binding.cpp)
+    src/telemetry_console_binding.cpp
+    src/telemetry_csv_recorder.cpp)
 target_include_directories(xmBase PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)

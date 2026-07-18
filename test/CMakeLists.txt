@@ -21,6 +21,10 @@ add_executable(test_telemetry_api test_telemetry_api.cpp)
 target_link_libraries(test_telemetry_api xmBase gtest gtest_main)
 gtest_discover_tests(test_telemetry_api)
 
+add_executable(test_telemetry_recorder test_telemetry_recorder.cpp)
+target_link_libraries(test_telemetry_recorder xmBase gtest gtest_main)
+gtest_discover_tests(test_telemetry_recorder)
+
 # Concurrency primitive verification (ADR 0007 W1) — suite names carry
 # "Concurrency" so the CI TSan leg can select them with a ctest filter.
 add_executable(test_concurrency_lifecycle test_concurrency_lifecycle.cpp)
