@@ -120,7 +120,7 @@ XM_DEBUG_STREAM("Position: " << x << ", " << y);   // non-RT convenience
 
 ### GitHub Actions Workflows
 
-**C++ Workflow** (`.github/workflows/cpp.yml`): ubuntu-22.04 + ubuntu-24.04; separate build and test jobs (`-DBUILD_TESTING=ON`); `ubuntu-24.04-arm` build+test (weak memory model); `eigen-free-core` (no Eigen installed, `-DXMBASE_GEOMETRY=OFF` — the core Eigen-freedom proof); sanitizer lanes (ASan/UBSan full suite; TSan on the console-binding + concurrency suites, with the documented `-Wno-tsan` for GCC 13's fence warning).
+**C++ Workflow** (`.github/workflows/cpp.yml`): ubuntu-22.04 + ubuntu-24.04; separate build and test jobs (`-DBUILD_TESTING=ON`); `ubuntu-24.04-arm` build+test (weak memory model); `eigen-free-core` (no Eigen installed, `-DXMBASE_GEOMETRY=OFF` — the core Eigen-freedom proof); sanitizer lanes (ASan/UBSan full suite; TSan on the console-binding + concurrency suites, with the documented `-Wno-tsan` for GCC 13's fence warning); `macos` (macos-14, arm64) — AppleClang + libc++ build and full test run, which covers the non-Linux `EventCount` fallback (the futex path compiles out) and Clang-only diagnostics GCC does not implement, such as `-Wunused-private-field`.
 
 **ROS Workflow** (`.github/workflows/ros.yml`): builds with ROS Humble and Jazzy via colcon.
 
