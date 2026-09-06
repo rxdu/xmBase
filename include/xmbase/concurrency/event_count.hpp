@@ -159,7 +159,9 @@ class EventCount {
   // protocol; the in-process protocol is what it verifies).
   std::atomic<std::uint32_t>* word_;
   std::atomic<std::uint32_t> internal_{0};
-  bool shared_;
+  // Read only on the Linux futex path below; Clang's
+  // -Wunused-private-field flags it elsewhere.
+  [[maybe_unused]] bool shared_;
   static_assert(sizeof(std::atomic<std::uint32_t>) == 4,
                 "futex word must be exactly 32 bits");
   static_assert(std::atomic<std::uint32_t>::is_always_lock_free,

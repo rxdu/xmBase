@@ -144,7 +144,9 @@ struct RegionStorage {
   }
 
   unsigned char* base_;
-  std::size_t size_;
+  // Only read by the bounds assert in Carve(), which compiles out under
+  // NDEBUG -- Clang's -Wunused-private-field then flags it.
+  [[maybe_unused]] std::size_t size_;
   std::size_t cursor_ = 0;
   bool initialize_;
 };
