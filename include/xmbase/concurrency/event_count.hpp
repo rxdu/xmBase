@@ -140,7 +140,12 @@ class EventCount {
 #else
   // Portable fallback (non-Linux dev hosts only; the deployed baseline is
   // Linux, R1): bounded sleep-poll, 500 us quantum.
-  void Wake() noexcept {}
+  //
+  // shared_ only selects a futex flag, so it has no meaning here; reference it
+  // so Clang's -Wunused-private-field stays quiet. Not [[maybe_unused]] on the
+  // member: GCC ignores that attribute on non-static data members and warns
+  // -Wattributes, which -Werror makes fatal.
+  void Wake() noexcept { (void)shared_; }
 
   void WaitOn(std::uint32_t expected, ::xmotion::Duration remaining) noexcept {
     const auto quantum = std::chrono::microseconds(500);
@@ -159,9 +164,7 @@ class EventCount {
   // protocol; the in-process protocol is what it verifies).
   std::atomic<std::uint32_t>* word_;
   std::atomic<std::uint32_t> internal_{0};
-  // Read only on the Linux futex path below; Clang's
-  // -Wunused-private-field flags it elsewhere.
-  [[maybe_unused]] bool shared_;
+  bool shared_;
   static_assert(sizeof(std::atomic<std::uint32_t>) == 4,
                 "futex word must be exactly 32 bits");
   static_assert(std::atomic<std::uint32_t>::is_always_lock_free,
