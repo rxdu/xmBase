@@ -83,6 +83,34 @@ jobs:
         shell: bash
         run: ctest --output-on-failure --no-tests=error
 
+  # macOS coverage: AppleClang + libc++ on arm64. Catches what neither the
+  # Ubuntu nor the ubuntu-arm lane can -- Clang-only diagnostics (GCC does not
+  # implement -Wunused-private-field), and the non-Linux EventCount fallback,
+  # since the futex path compiles out here.
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      - name: Install dependencies
+        # eigen@3 is keg-only: Homebrew's default eigen is now 5.x, and this
+        # project targets the 3.x API.
+        run: brew install eigen@3 abseil re2
+      - name: Configure CMake
+        shell: bash
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+          -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DXMOTION_WERROR=ON
+          -DCMAKE_PREFIX_PATH="$(brew --prefix eigen@3)"
+      - name: Build
+        shell: bash
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)" --config $BUILD_TYPE
+      - name: Test
+        working-directory: build
+        shell: bash
+        run: ctest --output-on-failure --no-tests=error
+
   # The Eigen-free-core proof (0.5.0 target split, ADR 0007): no libeigen3-dev
   # installed, geometry tier off — the core target, its tests, and the bench
   # binary must configure and build with zero Eigen anywhere on the system.

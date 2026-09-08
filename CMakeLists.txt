@@ -112,7 +112,13 @@ if(XMOTION_WERROR)
   # -Wmaybe-uninitialized stays a visible warning but does not gate: GCC's
   # flow analysis has a documented false-positive record inside libstdc++
   # headers (std::function/std::regex internals under sanitizers + -O).
-  add_compile_options(-Wall -Wextra -Werror -Wno-error=maybe-uninitialized)
+  add_compile_options(-Wall -Wextra -Werror)
+  # The -Wno-error= entries below name GCC-only diagnostics. Clang rejects
+  # unknown warning options outright (-Wunknown-warning-option), and under
+  # -Werror that fails the build, so gate them on the compiler.
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-Wno-error=maybe-uninitialized)
+  endif ()
 endif()
 
 ## Build the xmBase library from the include/ + src/ layout

@@ -130,6 +130,11 @@ struct RegionStorage {
     assert(cursor_ <= size_ &&
            "xmbase/concurrency: storage region overrun — layout constants "
            "disagree");
+    // The assert above is size_'s only reader, and it compiles out under
+    // NDEBUG; reference it so Clang's -Wunused-private-field stays quiet.
+    // Not [[maybe_unused]] on the member: GCC ignores that attribute on
+    // non-static data members and warns -Wattributes, fatal under -Werror.
+    (void)size_;
     if (initialize_) {
       // Value-initialize in place — the same semantics HeapStorage gets
       // from make_unique's `new U()` (zeroing atomics and PODs), so the

@@ -140,7 +140,12 @@ class EventCount {
 #else
   // Portable fallback (non-Linux dev hosts only; the deployed baseline is
   // Linux, R1): bounded sleep-poll, 500 us quantum.
-  void Wake() noexcept {}
+  //
+  // shared_ only selects a futex flag, so it has no meaning here; reference it
+  // so Clang's -Wunused-private-field stays quiet. Not [[maybe_unused]] on the
+  // member: GCC ignores that attribute on non-static data members and warns
+  // -Wattributes, which -Werror makes fatal.
+  void Wake() noexcept { (void)shared_; }
 
   void WaitOn(std::uint32_t expected, ::xmotion::Duration remaining) noexcept {
     const auto quantum = std::chrono::microseconds(500);
