@@ -49,7 +49,7 @@ Key options: `BUILD_TESTING` (build tests, default `OFF`), `ENABLE_LOGGING` (def
 
 ## Telemetry & logging
 
-API documentation lives in [`docs/telemetry/`](docs/telemetry/): **[guide](docs/telemetry/guide.md)** (how to instrument: logging, metrics, traces, signals, health) · **[reference](docs/telemetry/reference.md)** (every symbol + contract). Runnable reference examples: the [examples tour](examples/README.md) — hot loop, trace pipeline, worker-pool context discipline, device health, a complete custom binding, logging, types. The module design documents live with the xmTelemetry SDK (privately maintained — available for production integrations).
+API documentation lives in [`docs/telemetry/`](docs/telemetry/): **[guide](docs/telemetry/guide.md)** (how to instrument: logging, metrics, traces, signals, health) · **[reference](docs/telemetry/reference.md)** (every symbol + contract). Runnable reference examples: the [examples tour](examples/README.md) — hot loop, trace pipeline, worker-pool context discipline, device health, a complete custom binding, logging, types. The module design documents live with the xmTelemetry SDK (private).
 
 One front-end (format strings use fmt `{}` syntax, not printf):
 
